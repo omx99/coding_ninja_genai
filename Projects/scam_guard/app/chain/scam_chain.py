@@ -3,9 +3,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from app.prompts.registry import prompt_registry
-from app.core.config import get_settings
+from app.core.config import get_setings
 
-settings = get_settings()
+settings = get_setings()
 
 from app.schemas.response import ScamResult
 
@@ -14,16 +14,15 @@ def build_chain(prompt_version:str):
     # step 1 : define your parser
     parser = PydanticOutputParser(pydantic_object=ScamResult)
 
-    # Steo 2 - chatprompt 
-    # System message ??
-    # Human message
+    # Step 2 - chatprompt 
     template_str = prompt_registry.get_template(prompt_version)
+    print('template string vakue is: ',template_str)
     prompt = ChatPromptTemplate([
         ('system',template_str),
         ("human","{message}")
     ]).partial(
-        format_instuctions= parser.get_format_instructions()
-    )
+    format_instructions= parser.get_format_instructions()
+     )
 
     # step 3 : defien your llm 
     llm = ChatOpenAI(
