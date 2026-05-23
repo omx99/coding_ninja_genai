@@ -1,0 +1,5 @@
+customer_id,name,loan_type,emi,status
+BF001,Amit Sharma,Personal,8400,Active
+BF002,Priya Patel,Gold,5200,Active
+BF003,Rajan Mehta,Home,22000,Default
+BF004,Sunita Rao,Business,15000,Active
