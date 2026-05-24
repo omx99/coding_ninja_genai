@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HNSW Complete Playground — Bajaj Finance RAG</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;1,300&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c12;
+  --s1: #111420;
+  --s2: #181c2a;
+  --s3: #1e2336;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #dde2f0;
+  --muted: #7a839e;
+  --dim: #444d64;
+  --blue: #5b9cf6; --blue-l: rgba(91,156,246,0.12); --blue-b: rgba(91,156,246,0.35);
+  --green: #3ecb79; --green-l: rgba(62,203,121,0.12); --green-b: rgba(62,203,121,0.35);
+  --amber: #f5a623; --amber-l: rgba(245,166,35,0.12); --amber-b: rgba(245,166,35,0.35);
+  --red: #f06060; --red-l: rgba(240,96,96,0.12); --red-b: rgba(240,96,96,0.35);
+  --purple: #a78bfa; --purple-l: rgba(167,139,250,0.12); --purple-b: rgba(167,139,250,0.35);
+  --teal: #2dd4bf; --teal-l: rgba(45,212,191,0.12); --teal-b: rgba(45,212,191,0.35);
+  --C1:#60a5fa; --C1l:rgba(96,165,250,0.16); --C1b:rgba(96,165,250,0.5);
+  --C2:#34d399; --C2l:rgba(52,211,153,0.16); --C2b:rgba(52,211,153,0.5);
+  --C3:#fb923c; --C3l:rgba(251,146,60,0.16); --C3b:rgba(251,146,60,0.5);
+  --C4:#c084fc; --C4l:rgba(192,132,252,0.16); --C4b:rgba(192,132,252,0.5);
+  --C5:#fbbf24; --C5l:rgba(251,191,36,0.16); --C5b:rgba(251,191,36,0.5);
+  --C6:#f472b6; --C6l:rgba(244,114,182,0.16); --C6b:rgba(244,114,182,0.5);
+  --QC:#f06060; --Ql:rgba(240,96,96,0.16); --Qb:rgba(240,96,96,0.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.025) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px 16px 80px;}
+
+/* ── TOP NAV ── */
+.top-nav{display:flex;align-items:center;gap:0;background:var(--s1);border:1px solid var(--border2);border-radius:14px;padding:6px;margin-bottom:20px;flex-wrap:wrap;gap:4px;}
+.mode-pill{flex:1;min-width:120px;text-align:center;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s;border:1px solid transparent;}
+.mode-pill:hover{color:var(--text);}
+.mode-pill.active{background:var(--s3);border-color:var(--border2);color:var(--text);}
+.mode-pill .mode-tag{display:block;font-size:9px;font-family:'JetBrains Mono',monospace;font-weight:400;color:var(--dim);margin-top:1px;text-transform:uppercase;letter-spacing:.08em;}
+
+/* ── HEADER ── */
+.page-header{margin-bottom:18px;}
+.phase-label{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--purple);border:1px solid var(--purple-b);background:var(--purple-l);padding:3px 10px;border-radius:20px;margin-bottom:8px;}
+.page-title{font-size:19px;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--muted);line-height:1.6;}
+
+/* ── CTRL BAR ── */
+.ctrl-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;margin-bottom:16px;}
+.ctrl-label{font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);}
+.ef-btn,.nav-btn{padding:5px 13px;font-size:12px;font-weight:600;border:1px solid var(--border2);border-radius:7px;cursor:pointer;background:var(--s2);color:var(--muted);transition:all .18s;font-family:'JetBrains Mono',monospace;}
+.ef-btn:hover{border-color:var(--blue-b);color:var(--blue);}
+.ef-btn.active{background:var(--blue-l);border-color:var(--blue-b);color:var(--blue);}
+.nav-btn{font-family:'Outfit',sans-serif;color:var(--text);}
+.nav-btn:hover:not(:disabled){background:var(--s3);}
+.nav-btn:disabled{opacity:.3;cursor:default;}
+.step-pill{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;}
+.divider-v{width:1px;height:18px;background:var(--border2);}
+.restart-btn{margin-left:auto;padding:4px 12px;font-size:11px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:transparent;color:var(--dim);transition:all .18s;}
+.restart-btn:hover{border-color:var(--border2);color:var(--muted);}
+
+/* ── MAIN LAYOUT ── */
+.main{display:grid;grid-template-columns:1fr 400px;gap:14px;align-items:start;}
+@media(max-width:800px){.main{grid-template-columns:1fr;}}
+
+/* ── LAYER PANELS ── */
+.layers-col{display:flex;flex-direction:column;gap:10px;}
+.layer-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .3s,box-shadow .3s;}
+.layer-card.active-layer{border-color:var(--amber-b);box-shadow:0 0 0 1px var(--amber-l);}
+.layer-card.done-layer{border-color:var(--green-b);}
+.layer-head{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);}
+.lbadge{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;letter-spacing:.04em;}
+.lb2{background:var(--purple-l);color:var(--purple);border:1px solid var(--purple-b);}
+.lb1{background:var(--green-l);color:var(--green);border:1px solid var(--green-b);}
+.lb0{background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-b);}
+.lhead-txt{font-size:11px;color:var(--muted);}
+.lhead-right{margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;}
+.lactive-tag{color:var(--amber);font-weight:600;}
+.ldone-tag{color:var(--green);}
+canvas.lcanvas{display:block;width:100%;}
+
+/* ── RIGHT PANEL ── */
+.right-col{display:flex;flex-direction:column;gap:10px;}
+
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);font-family:'JetBrains Mono',monospace;margin-bottom:10px;}
+
+/* story */
+.story-item{display:flex;gap:10px;margin-bottom:12px;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s;}
+.story-item.vis{opacity:1;transform:none;}
+.story-num{flex-shrink:0;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.sn-done{background:var(--green-l);border:1px solid var(--green-b);color:var(--green);}
+.sn-cur{background:var(--amber-l);border:1px solid var(--amber-b);color:var(--amber);}
+.sn-wait{background:var(--s2);border:1px solid var(--border);color:var(--dim);}
+.story-body .st{font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.story-body .sp{font-size:12px;color:var(--muted);line-height:1.65;}
+.story-body .sp .hb{color:var(--blue);font-weight:600;}
+.story-body .sp .hg{color:var(--green);font-weight:600;}
+.story-body .sp .ha{color:var(--amber);font-weight:600;}
+.story-body .sp .hr{color:var(--red);font-weight:600;}
+.story-body .sp .hp{color:var(--purple);font-weight:600;}
+.story-body .sp strong{color:var(--text);}
+
+/* math */
+.math-row{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;opacity:0;transform:translateX(-4px);transition:opacity .28s,transform .28s;}
+.math-row.vis{opacity:1;transform:none;}
+.math-row:last-child{border-bottom:none;}
+.ml{color:var(--dim);min-width:68px;font-size:10px;flex-shrink:0;}
+.me{flex:1;color:var(--muted);}
+.mr{font-weight:600;}
+.mr.win{color:var(--green);}
+.mr.lose{color:var(--red);opacity:.6;}
+.mr.neu{color:var(--amber);}
+.mr.info{color:var(--blue);}
+
+/* pool */
+.pool-explain{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px;}
+.pool-explain strong{color:var(--text);}
+.pool-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;border:1px solid transparent;margin-bottom:5px;opacity:0;transform:translateY(5px);transition:opacity .25s,transform .25s,background .3s,border-color .3s;}
+.pool-item.vis{opacity:1;transform:none;}
+.pi-sel{background:var(--green-l);border-color:var(--green-b);}
+.pi-drop{background:var(--red-l);border-color:var(--red-b);opacity:.5!important;}
+.pi-pool{background:var(--s2);border-color:var(--border);}
+.pi-rank{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:var(--dim);width:14px;flex-shrink:0;}
+.pi-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+.pi-info{flex:1;}
+.pi-name{font-size:11px;font-weight:600;color:var(--text);}
+.pi-dist{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.pi-fate{font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;flex-shrink:0;}
+.pf-win{background:var(--green-l);color:var(--green);border:1px solid var(--green-b);}
+.pf-drop{background:var(--red-l);color:var(--red);border:1px solid var(--red-b);}
+.pf-pool{background:var(--s2);color:var(--muted);border:1px solid var(--border2);}
+
+/* callout boxes */
+.callout{border-radius:8px;padding:9px 12px;font-size:12px;line-height:1.65;margin-top:8px;}
+.callout strong{font-weight:700;}
+.co-amber{background:var(--amber-l);border:1px solid var(--amber-b);color:var(--amber);}
+.co-green{background:var(--green-l);border:1px solid var(--green-b);color:var(--green);}
+.co-blue{background:var(--blue-l);border:1px solid var(--blue-b);color:var(--blue);}
+.co-red{background:var(--red-l);border:1px solid var(--red-b);color:var(--red);}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+.leg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);}
+.leg-dot{width:10px;height:10px;border-radius:50%;}
+
+/* progress bar */
+.progress-bar{height:3px;background:var(--s3);border-radius:2px;margin-bottom:16px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:2px;transition:width .4s;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- top mode nav -->
+<div class="top-nav">
+  <div class="mode-pill active" id="tab-build" onclick="switchMode('build',this)">
+    Construction
+    <span class="mode-tag">Insert C1→C6 into graph</span>
+  </div>
+  <div class="mode-pill" id="tab-search" onclick="switchMode('search',this)">
+    Search
+    <span class="mode-tag">Find nearest to Q=(6,5)</span>
+  </div>
+  <div class="mode-pill" id="tab-compare" onclick="switchMode('compare',this)">
+    ef Compare
+    <span class="mode-tag">ef=1 vs ef=6 side by side</span>
+  </div>
+</div>
+
+<!-- header -->
+<div class="page-header">
+  <div class="phase-label" id="mode-label">HNSW · Bajaj Finance RAG · Construction</div>
+  <div class="page-title" id="page-title">Building the HNSW graph — step by step</div>
+  <div class="page-sub" id="page-sub">6 loan customers inserted one by one. Watch how each node finds its neighbors using ef_construction.</div>
+</div>
+
+<!-- progress -->
+<div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+
+<!-- ctrl bar -->
+<div class="ctrl-bar" id="ctrl-bar">
+  <span class="ctrl-label" id="ef-label-txt">ef_construction</span>
+  <button class="ef-btn" onclick="setEf(1,this)">1</button>
+  <button class="ef-btn active" id="ef2btn" onclick="setEf(2,this)">2</button>
+  <button class="ef-btn" onclick="setEf(3,this)">3</button>
+  <button class="ef-btn" onclick="setEf(6,this)">6 (all)</button>
+  <div class="divider-v"></div>
+  <button class="nav-btn" id="pb" onclick="prevStep()" disabled>← prev</button>
+  <span class="step-pill" id="sc">1 / 6</span>
+  <button class="nav-btn" id="nb" onclick="nextStep()">next →</button>
+  <button class="restart-btn" onclick="restart()">↺ restart</button>
+</div>
+
+<!-- legend -->
+<div class="legend">
+  <div class="leg"><div class="leg-dot" style="background:var(--C1)"></div>C1=(1,2) Low CIBIL, Low Income</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--C2)"></div>C2=(2,8) Low CIBIL, High Income</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--C3)"></div>C3=(5,3) Mid CIBIL, Low Income</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--C4)"></div>C4=(5,7) Mid CIBIL, High Income</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--C5)"></div>C5=(8,2) High CIBIL, Low Income</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--C6)"></div>C6=(9,8) High CIBIL, High Income</div>
+  <div class="leg" id="q-leg" style="display:none"><div class="leg-dot" style="background:var(--QC)"></div>Q=(6,5) New Loan Application</div>
+</div>
+
+<!-- main grid -->
+<div class="main" id="main-grid">
+  <div class="layers-col">
+    <div class="layer-card" id="lc2">
+      <div class="layer-head">
+        <span class="lbadge lb2">Layer 2</span>
+        <span class="lhead-txt">Top floor — entry point, fewest nodes</span>
+        <span class="lhead-right" id="lh2"></span>
+      </div>
+      <canvas class="lcanvas" id="cv2" height="110"></canvas>
+    </div>
+    <div class="layer-card" id="lc1">
+      <div class="layer-head">
+        <span class="lbadge lb1">Layer 1</span>
+        <span class="lhead-txt">Express floor — long-range connections</span>
+        <span class="lhead-right" id="lh1"></span>
+      </div>
+      <canvas class="lcanvas" id="cv1" height="155"></canvas>
+    </div>
+    <div class="layer-card" id="lc0">
+      <div class="layer-head">
+        <span class="lbadge lb0">Layer 0</span>
+        <span class="lhead-txt">Base floor — all nodes, fine-grained</span>
+        <span class="lhead-right" id="lh0"></span>
+      </div>
+      <canvas class="lcanvas" id="cv0" height="195"></canvas>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <!-- Plain English -->
+    <div class="card">
+      <div class="card-title">What's happening — plain English</div>
+      <div id="story-wrap"></div>
+    </div>
+    <!-- Math -->
+    <div class="card" id="math-card">
+      <div class="card-title">Distance calculations (technical)</div>
+      <div id="math-wrap"></div>
+    </div>
+    <!-- Pool -->
+    <div class="card" id="pool-card">
+      <div class="card-title">ef candidate pool</div>
+      <div class="pool-explain" id="pool-expl"></div>
+      <div id="pool-wrap"></div>
+      <div class="callout" id="callout1" style="display:none"></div>
+      <div class="callout" id="callout2" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Compare mode panel (hidden by default) -->
+<div id="compare-panel" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;">
+    <div>
+      <div class="card-title" style="margin-bottom:8px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;color:var(--red)">ef=1 — Greedy / Fast</div>
+      <canvas id="cv-cmp1" style="width:100%;border-radius:10px;border:1px solid var(--red-b);" height="280"></canvas>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:8px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;color:var(--green)">ef=6 — Exhaustive / Best Quality</div>
+      <canvas id="cv-cmp2" style="width:100%;border-radius:10px;border:1px solid var(--green-b);" height="280"></canvas>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px;">
+    <div class="card">
+      <div class="card-title">ef=1 — What happens</div>
+      <div class="pool-explain">
+        At each insertion, only <strong>1 candidate</strong> is remembered at a time. Like a job recruiter who interviews one person and immediately hires them without comparing others.<br><br>
+        <span style="color:var(--red)">✗</span> C1 connects to C4 only (misses that C2 is closer)<br>
+        <span style="color:var(--red)✗</span> C3 connects to C4 only (misses C1 as a better neighbor)<br><br>
+        <strong>Result:</strong> Faster graph build, but searches will miss true nearest neighbors.
+      </div>
+      <div class="callout co-red"><strong>Bajaj Finance impact:</strong> A customer query might return the 3rd-closest FAQ instead of the 1st — because the graph didn't explore enough during build.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">ef=6 — What happens</div>
+      <div class="pool-explain">
+        Every insertion checks <strong>all existing nodes</strong>. Like a recruiter who interviews every candidate before making a decision.<br><br>
+        <span style="color:var(--green)">✓</span> C1 finds both C2 (6.08) and C4 (6.40) — correct top-2<br>
+        <span style="color:var(--green)">✓</span> C3 finds C4 (4.00) and C1 (4.12) — correct top-2<br><br>
+        <strong>Result:</strong> Perfect neighbor quality. Slower build (O(n) per insert), but done once.
+      </div>
+      <div class="callout co-green"><strong>Production rule:</strong> ChromaDB default is ef_construction=100. For Bajaj Finance 2000 FAQs, use ef=200. Build cost is one-time — search benefits forever.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───
+const ND = {
+  C1:{x:1,y:2,c:'#60a5fa',fl:'rgba(96,165,250,0.18)',st:'rgba(96,165,250,0.75)',tc:'#60a5fa',desc:'Low CIBIL, Low Income'},
+  C2:{x:2,y:8,c:'#34d399',fl:'rgba(52,211,153,0.18)',st:'rgba(52,211,153,0.75)',tc:'#34d399',desc:'Low CIBIL, High Income'},
+  C3:{x:5,y:3,c:'#fb923c',fl:'rgba(251,146,60,0.18)',st:'rgba(251,146,60,0.75)',tc:'#fb923c',desc:'Mid CIBIL, Low Income'},
+  C4:{x:5,y:7,c:'#c084fc',fl:'rgba(192,132,252,0.18)',st:'rgba(192,132,252,0.75)',tc:'#c084fc',desc:'Mid CIBIL, High Income'},
+  C5:{x:8,y:2,c:'#fbbf24',fl:'rgba(251,191,36,0.18)',st:'rgba(251,146,60,0.75)',tc:'#fbbf24',desc:'High CIBIL, Low Income'},
+  C6:{x:9,y:8,c:'#f472b6',fl:'rgba(244,114,182,0.18)',st:'rgba(244,114,182,0.75)',tc:'#f472b6',desc:'High CIBIL, High Income'},
+};
+const Q={x:6,y:5,c:'#f06060',fl:'rgba(240,96,96,0.2)',st:'rgba(240,96,96,0.8)'};
+
+function edist(ax,ay,bx,by){return Math.sqrt((ax-bx)**2+(ay-by)**2);}
+function ndist(a,b){const na=ND[a],nb=ND[b];return edist(na.x,na.y,nb.x,nb.y);}
+function fd(v){return v.toFixed(2);}
+
+// ─── MODES ───
+let mode='build', ef=2, cur=0;
+
+// ─── BUILD STEPS ───
+const BUILD=[
+  {
+    bnum:'Step 1 of 6',btitle:'Insert C4 → Level 2 (Entry Point)',
+    bsub:'C4 wins the lottery — a rare random draw puts it at the very top of the hierarchy.',
+    al:-1,lh2:'',lh1:'',lh0:'',
+    vL2:['C4'],vL1:['C4'],vL0:['C4'],
+    eL2:[],eL1:[],eL0:[],
+    hl:{C4:true},nw:'C4',sv:[],qv:false,
+    story:[
+      {t:'C4 draws a very small random number',p:'Every node flips a virtual coin repeatedly to decide its "level". C4 got lucky — its random draw r=<span class="ha">0.05</span> was tiny, giving it Level 2 (the top floor). Think of it as C4 winning a lottery to become a VIP on the highway.'},
+      {t:'C4 is the very first node',p:'Since the graph is empty, C4 has nobody to connect to yet. It simply becomes the <strong>global entry point</strong> — every future search will start here, at the top.'},
+      {t:'No ef_construction needed yet',p:'ef_construction only matters when there are existing nodes to compare against. With an empty graph, there\'s nothing to sort or filter.'},
+    ],
+    math:[
+      {l:'r =',e:'0.05  (random draw, very small)',r:'',cls:'neu'},
+      {l:'−ln(0.05) =',e:'−(−2.996) = 2.996',r:'',cls:'neu'},
+      {l:'× mL =',e:'2.996 × 1.443  (mL = 1/ln(2))',r:'= 4.32',cls:'neu'},
+      {l:'floor(4.32) =',e:'4 → capped at max_level=2',r:'→ Level 2',cls:'win'},
+    ],
+    pool:[],
+    pexp:'No candidates yet — graph is empty. C4 is inserted unconditionally as the first node.',
+    c1:{cls:'co-amber',txt:'<strong>Analogy:</strong> C4 is like the first employee at a startup. No hierarchy exists yet — they automatically become CEO (entry point).'},
+    c2:null,
+  },
+  {
+    bnum:'Step 2 of 6',btitle:'Insert C2 → Level 1',
+    bsub:'C2 enters at Level 1. It searches Layer 2 first, then Layer 1 to find its best neighbor.',
+    al:1,lh2:'searched ✓',lh1:'← connecting here',lh0:'',
+    vL2:['C4'],vL1:['C4','C2'],vL0:['C4','C2'],
+    eL2:[],eL1:[['C2','C4']],eL0:[],
+    hl:{C4:true,C2:true},nw:'C2',sv:[],qv:false,
+    story:[
+      {t:'C2 draws r=0.49 → Level 1',p:'C2\'s random draw is 0.49. The formula gives floor(0.713 × 1.443) = floor(1.03) = <span class="hg">1</span>. C2 lives on Layer 1 and Layer 0, but NOT Layer 2.'},
+      {t:'Search starts at Layer 2 (the top)',p:'C2 enters at the top and asks C4: <span class="ha">"How far are you from me?"</span>. C2=(2,8), C4=(5,7). Distance = <span class="ha">√10 ≈ 3.16</span>. C4 is the only node at L2, so it wins by default.'},
+      {t:'Move to Layer 1 — ef_construction kicks in',p:'At Layer 1, C2 starts a pool with C4 (3.16). C4\'s L1 neighbors are checked — but none exist yet. Pool stays: just C4. <strong>Connect C2 ↔ C4 at L1.</strong>'},
+    ],
+    math:[
+      {l:'r =',e:'0.49  →  −ln(0.49) × 1.443',r:'= 1.03 → Level 1',cls:'win'},
+      {l:'L2: d(C2,C4) =',e:'√((2−5)²+(8−7)²) = √(9+1) = √10',r:'≈ 3.16',cls:'neu'},
+      {l:'L1 pool:',e:'Start {C4=3.16}, expand C4 neighbors',r:'none yet',cls:'neu'},
+      {l:'Result:',e:'C4 wins → connect C2 ↔ C4 at L1',r:'✓',cls:'win'},
+    ],
+    pool:[{id:'C4',d:'3.16',fate:'win',pl:'Only candidate — no competition'}],
+    pexp:'ef_construction pool at Layer 1. Only C4 exists, so ef size doesn\'t matter here — C4 is automatically selected.',
+    c1:{cls:'co-blue',txt:'<strong>Think of it as:</strong> C2 (a new employee) joins the office. The only person already there is C4. They become teammates automatically.'},
+    c2:null,
+  },
+  {
+    bnum:'Step 3 of 6',btitle:'Insert C6 → Level 1',
+    bsub:'Now ef_construction matters! C6 has TWO candidates to choose from — C4 and C2. ef decides how many it considers.',
+    al:1,lh2:'searched ✓',lh1:'← ef_construction in action',lh0:'← L0 connect',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6']],
+    hl:{C4:true,C2:true,C6:true},nw:'C6',sv:[],qv:false,
+    story:[
+      {t:'C6 = (9,8) — High CIBIL, High Income customer',p:'C6 draws r=0.51 → Level 1. It enters at Layer 2 (only C4 there), measures d(C6,C4)=<span class="ha">4.12</span>, then descends to Layer 1 with C4 as best-so-far.'},
+      {t:'Layer 1: expand C4\'s neighbors',p:'At Layer 1, C6 sees C4 is connected to <strong>C2</strong>. So C6 measures distance to C2 as well. C6=(9,8), C2=(2,8) — same height! d(C6,C2) = <span class="hr">7.00</span> (much farther).'},
+      {t:'ef_construction pool — THIS is the key moment',p:'Pool sorted by distance: <span class="hg">C4=4.12</span> (closer), <span class="hr">C2=7.00</span> (farther). ef_construction says "keep only top-ef candidates." Change ef above to see what gets dropped!'},
+      {t:'Connect at Layer 0 too',p:'Every node must exist at Layer 0. C6 reuses the Layer 1 winner (C4) and connects to it at Layer 0 as well. No re-search needed.'},
+    ],
+    math:[
+      {l:'r =',e:'0.51  → Level 1',r:'',cls:'neu'},
+      {l:'L2: d(C6,C4) =',e:'√((9−5)²+(8−7)²) = √(16+1) = √17',r:'≈ 4.12',cls:'neu'},
+      {l:'L1: d(C6,C2) =',e:'√((9−2)²+(8−8)²) = √(49+0) = √49',r:'= 7.00',cls:'lose'},
+      {l:'Pool sorted:',e:'{C4=4.12, C2=7.00} → keep top-ef',r:'',cls:'neu'},
+      {l:'L0: inherit',e:'C4 (nearest) → connect C6↔C4 at L0',r:'✓',cls:'win'},
+    ],
+    pool:[
+      {id:'C4',d:'4.12',fate:'win',pl:'Nearest to C6 — always connected'},
+      {id:'C2',d:'7.00',fate:'drop',pl:'Farther — kept only if ef ≥ 2'},
+    ],
+    pexp:'Change ef above! With ef=1, only C4 survives. With ef=2+, C2 stays in memory (but M=2 max edges still applies). Try it now →',
+    c1:{cls:'co-amber',txt:'<strong>ef=1:</strong> C6 connects ONLY to C4. Faster build, weaker graph. <strong>ef=2:</strong> C6 sees both C4 and C2, picks best. <strong>ef=6:</strong> Exhaustive — same result here but better for complex cases.'},
+    c2:null,
+  },
+  {
+    bnum:'Step 4 of 6',btitle:'Insert C1 → Level 0',
+    bsub:'C1 gets the lowest possible level. Watch how ef_construction expands the search through existing L0 neighbors.',
+    al:0,lh2:'searched ✓',lh1:'searched ✓',lh0:'← ef in action here',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4']],
+    hl:{C4:true,C2:true,C6:true,C1:true},nw:'C1',sv:[],qv:false,
+    story:[
+      {t:'C1=(1,2) draws r=0.95 — the base floor only',p:'r=0.95 is close to 1 (the "unlucky" end). Formula: floor(−ln(0.95)×1.44) = floor(0.074) = <span class="hb">0</span>. C1 only exists at Layer 0. Most customers in a large dataset will be Level 0 nodes.'},
+      {t:'Greedy descent brings us to Layer 0',p:'Entering at Layer 2 (C4), C1 descends through L1 without connecting (it\'s Level 0 only), then starts its ef_construction search at <strong>Layer 0</strong>.'},
+      {t:'Layer 0 search — ef_construction expands the frontier',p:'Start with C4 (d=6.40). Expand C4\'s L0 neighbors → find C6 (d=10.0). Expand C6\'s neighbors → find <strong>C2</strong> (d=6.08)! Without expanding C6, we\'d never discover C2 as a closer option.'},
+      {t:'ef pool sorted — pick top M=2',p:'Pool: <span class="hg">C2=6.08</span>, <span class="hg">C4=6.40</span>, <span class="hr">C6=10.0</span>. M=2 → connect to <strong>C2 and C4</strong>. With ef=1, C4 would win alone and C2 would be missed!'},
+    ],
+    math:[
+      {l:'r =',e:'0.95  →  floor(0.074) = 0 → Level 0',r:'',cls:'neu'},
+      {l:'L0 enter:',e:'d(C1,C4) = √((1−5)²+(2−7)²) = √41',r:'= 6.40',cls:'neu'},
+      {l:'Expand C4→C6:',e:'d(C1,C6) = √((1−9)²+(2−8)²) = √100',r:'= 10.00',cls:'lose'},
+      {l:'Expand C6→C2:',e:'d(C1,C2) = √((1−2)²+(2−8)²) = √37',r:'= 6.08',cls:'win'},
+      {l:'Top-2 (M=2):',e:'C2(6.08), C4(6.40) → connect both',r:'✓',cls:'win'},
+    ],
+    pool:[
+      {id:'C2',d:'6.08',fate:'win',pl:'Found by expanding C6\'s neighbors!'},
+      {id:'C4',d:'6.40',fate:'win',pl:'Starting point — always in pool'},
+      {id:'C6',d:'10.00',fate:'drop',pl:'Too far — dropped from pool'},
+    ],
+    pexp:'The pool grows as we expand neighbors. ef=1 → only C4. ef=2 → C2 found via C6. ef=3+ → same here but helps in denser graphs.',
+    c1:{cls:'co-amber',txt:'<strong>Key insight:</strong> C2 was discovered by first visiting C6, then C6\'s neighbor C2. This multi-hop expansion is why larger ef finds better neighbors.'},
+    c2:{cls:'co-blue',txt:'<strong>Why does this matter?</strong> If C1 only connected to C4 (ef=1), future searches near C1 would be less accurate — C2 is actually closer but would be unreachable.'},
+  },
+  {
+    bnum:'Step 5 of 6',btitle:'Insert C3 → Level 0',
+    bsub:'C3 at (5,3) — the "middle" customer. Its pool grows as we expand through existing L0 connections.',
+    al:0,lh2:'searched ✓',lh1:'searched ✓',lh0:'← building connections',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1','C3'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1']],
+    hl:{C4:true,C1:true,C3:true},nw:'C3',sv:[],qv:false,
+    story:[
+      {t:'C3=(5,3) is the mid-CIBIL, low-income customer',p:'r=0.88 → Level 0. C3 enters at Layer 2 (C4 is entry), greedy descends to Layer 0. At L0, starts pool with C4.'},
+      {t:'Expand through the graph',p:'C4\'s L0 neighbors: C6 and C1. Measure both. C3=(5,3), C1=(1,2) → d=<span class="ha">√17≈4.12</span>. C3=(5,3), C6=(9,8) → d=<span class="hr">√41≈6.40</span>. Then expand C1\'s neighbors → find C2.'},
+      {t:'Pool sorts, top M=2 selected',p:'Pool: <span class="hg">C4=4.00</span> (C3 and C4 share the same x-coordinate!), <span class="hg">C1=4.12</span>, C2=5.83, C6=6.40. Pick top-2: <strong>C4 and C1</strong>.'},
+    ],
+    math:[
+      {l:'r =',e:'0.88  →  Level 0',r:'',cls:'neu'},
+      {l:'d(C3,C4) =',e:'√((5−5)²+(3−7)²) = √(0+16) = √16',r:'= 4.00',cls:'win'},
+      {l:'d(C3,C1) =',e:'√((5−1)²+(3−2)²) = √(16+1) = √17',r:'≈ 4.12',cls:'win'},
+      {l:'d(C3,C2) =',e:'√((5−2)²+(3−8)²) = √(9+25) = √34',r:'≈ 5.83',cls:'lose'},
+      {l:'d(C3,C6) =',e:'√((5−9)²+(3−8)²) = √(16+25) = √41',r:'≈ 6.40',cls:'lose'},
+      {l:'Top-2:',e:'C4(4.00), C1(4.12) → connect',r:'✓',cls:'win'},
+    ],
+    pool:[
+      {id:'C4',d:'4.00',fate:'win',pl:'Same x-coord as C3 → very close'},
+      {id:'C1',d:'4.12',fate:'win',pl:'Low income cluster neighbor'},
+      {id:'C2',d:'5.83',fate:'drop',pl:'Dropped (ef<3 won\'t see it via expansion)'},
+      {id:'C6',d:'6.40',fate:'drop',pl:'Farthest — dropped'},
+    ],
+    pexp:'4 candidates found through graph expansion. ef_construction controls how many we keep during the walk. M=2 picks the final 2 to connect.',
+    c1:{cls:'co-amber',txt:'<strong>Notice:</strong> C4 and C3 share x=5. They are vertically aligned — only 4 units apart. This is why C4 is the natural nearest neighbor.'},
+    c2:null,
+  },
+  {
+    bnum:'Step 6 of 6',btitle:'Insert C5 → Level 0 — Graph Complete!',
+    bsub:'Final insertion. C5=(8,2) is the high-CIBIL, low-income customer. Graph construction is done after this.',
+    al:0,lh2:'done ✓',lh1:'done ✓',lh0:'← final insertion',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1','C3','C5'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']],
+    hl:{C5:true,C3:true,C6:true},nw:'C5',sv:[],qv:false,
+    story:[
+      {t:'C5=(8,2) — High CIBIL, Low Income customer',p:'r=0.92 → Level 0. Enters at Layer 2 (C4), descends to Layer 0. Starts pool with C4 (d=5.83).'},
+      {t:'Expand and discover C3 is much closer!',p:'C4\'s L0 neighbors: C6, C1, C3. Measure all. <span class="hg">C3=(5,3) → d=√10≈3.16</span> — much closer than C4! Then expand C3\'s neighbors to find more.'},
+      {t:'Pool sorted — M=2 final selection',p:'Pool: <span class="hg">C3=3.16</span>, C4=5.83, <span class="hg">C6=6.08</span>, C1=7.0. C4 is already at max edges, so C6 gets selected as second. Connect <strong>C5↔C3 and C5↔C6</strong>.'},
+      {t:'Graph construction complete!',p:'All 6 Bajaj Finance customers are now in the HNSW graph. <span class="hg">Switch to Search mode</span> to see how a new loan application query navigates this graph.'},
+    ],
+    math:[
+      {l:'r =',e:'0.92  →  Level 0',r:'',cls:'neu'},
+      {l:'d(C5,C4) =',e:'√((8−5)²+(2−7)²) = √(9+25) = √34',r:'≈ 5.83',cls:'neu'},
+      {l:'d(C5,C3) =',e:'√((8−5)²+(2−3)²) = √(9+1)  = √10',r:'≈ 3.16',cls:'win'},
+      {l:'d(C5,C6) =',e:'√((8−9)²+(2−8)²) = √(1+36)  = √37',r:'≈ 6.08',cls:'neu'},
+      {l:'d(C5,C1) =',e:'√((8−1)²+(2−2)²) = √49',r:'= 7.00',cls:'lose'},
+      {l:'Top-2:',e:'C3(3.16), C6(6.08) → connect',r:'✓ Done!',cls:'win'},
+    ],
+    pool:[
+      {id:'C3',d:'3.16',fate:'win',pl:'Nearest — high CIBIL cluster'},
+      {id:'C6',d:'6.08',fate:'win',pl:'C4 full → C6 promoted to 2nd'},
+      {id:'C4',d:'5.83',fate:'drop',pl:'C4 already has max 2 neighbors'},
+      {id:'C1',d:'7.00',fate:'drop',pl:'Farthest — dropped'},
+    ],
+    pexp:'Construction complete. Graph has 3 layers, 6 nodes, M=2 edges per node. Ready for search queries.',
+    c1:{cls:'co-green',txt:'<strong>Graph ready!</strong> Switch to <strong>Search mode</strong> above to see how a new loan application Q=(6,5) navigates this graph to find similar customers.'},
+    c2:null,
+  },
+];
+
+// ─── SEARCH STEPS ───
+const SEARCH=[
+  {
+    bnum:'Search Phase 1 of 4',btitle:'New loan application Q=(6,5) — where do we start?',
+    bsub:'Q=(6,5) is Mid-High CIBIL, Mid Income. HNSW always enters at the top layer (Layer 2) with the entry point node.',
+    al:2,lh2:'← enter here',lh1:'',lh0:'',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1','C3','C5'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']],
+    hl:{C4:true},nw:null,sv:[],qv:true,
+    story:[
+      {t:'New customer query: Q=(6,5)',p:'A new loan application arrives. CIBIL Score=6 (Mid-High), Income=5 (Mid). We want to find the <strong>most similar existing customer</strong> in our Bajaj Finance database.'},
+      {t:'Always start at the top — Layer 2, entry point C4',p:'HNSW is deterministic about where it starts: always the <strong>global entry point</strong>, which is C4 (the node that reached the highest level during construction).'},
+      {t:'Measure distance from Q to C4',p:'Q=(6,5), C4=(5,7). Distance = <span class="ha">√((6−5)²+(5−7)²) = √5 ≈ 2.24</span>. C4 is the only node at Layer 2, so it wins automatically.'},
+      {t:'Descend to Layer 1',p:'No neighbors at Layer 2 to compare. C4 is our best-so-far. We go down to Layer 1 carrying C4 (d=2.24) in our pocket.'},
+    ],
+    math:[
+      {l:'Query Q =',e:'(6, 5)  — Mid-High CIBIL, Mid Income',r:'',cls:'neu'},
+      {l:'Entry pt:',e:'C4 (reached Level 2 during construction)',r:'',cls:'neu'},
+      {l:'d(Q, C4) =',e:'√((6−5)²+(5−7)²) = √(1+4) = √5',r:'≈ 2.24',cls:'win'},
+      {l:'L2 result:',e:'C4 wins (only node at L2)',r:'descend ↓',cls:'neu'},
+    ],
+    pool:[{id:'C4',d:'2.24',fate:'win',pl:'Entry point — only candidate at L2'}],
+    pexp:'ef_search controls how many candidates we keep during search. At Layer 2, there\'s only C4 — ef doesn\'t matter yet.',
+    c1:{cls:'co-blue',txt:'<strong>Why start at the top?</strong> Layer 2 has few nodes with long-range connections. Starting here lets us "jump" across the graph quickly before zooming in at Layer 0.'},
+    c2:null,
+  },
+  {
+    bnum:'Search Phase 2 of 4',btitle:'Layer 1 — greedy walk, is there anyone closer?',
+    bsub:'Q has C4 (d=2.24) as best-so-far. Now expand C4\'s Layer 1 neighbors and check if anything is closer.',
+    al:1,lh2:'done ✓',lh1:'← greedy search',lh0:'',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1','C3','C5'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']],
+    hl:{C4:true,C2:true,C6:true},nw:null,sv:['C4'],qv:true,
+    story:[
+      {t:'Enter Layer 1 with C4 as best (d=2.24)',p:'At Layer 1, C4 is connected to C2 and C6. The ef_search pool starts with {C4=2.24}. Now expand C4\'s neighbors.'},
+      {t:'Measure Q to C2 and C6',p:'Q=(6,5), C2=(2,8): d=<span class="hr">√25=5.00</span>. Q=(6,5), C6=(9,8): d=<span class="hr">√18≈4.24</span>. Both are farther than C4. So C4 remains the best at Layer 1.'},
+      {t:'C4 is a local minimum — descend',p:'No neighbor is closer than C4. This is called a <strong>local minimum</strong>. HNSW stops searching at Layer 1 and descends to Layer 0, still carrying C4 (d=2.24).'},
+    ],
+    math:[
+      {l:'L1 pool start:',e:'{C4 = 2.24}  (inherited from L2)',r:'',cls:'neu'},
+      {l:'d(Q, C2) =',e:'√((6−2)²+(5−8)²) = √(16+9) = √25',r:'= 5.00',cls:'lose'},
+      {l:'d(Q, C6) =',e:'√((6−9)²+(5−8)²) = √(9+9) = √18',r:'≈ 4.24',cls:'lose'},
+      {l:'Pool:',e:'{C4=2.24, C6=4.24, C2=5.00} → C4 best',r:'local min',cls:'win'},
+    ],
+    pool:[
+      {id:'C4',d:'2.24',fate:'win',pl:'Local minimum — stays best'},
+      {id:'C6',d:'4.24',fate:'pool',pl:'In pool if ef_search ≥ 2'},
+      {id:'C2',d:'5.00',fate:'drop',pl:'Dropped unless ef_search ≥ 3'},
+    ],
+    pexp:'ef_search controls candidates kept during search. More candidates = wider exploration at Layer 0 = better recall. Change ef above to see pool size change.',
+    c1:{cls:'co-amber',txt:'<strong>Greedy = always move toward closer.</strong> Since C2 and C6 are farther than C4, we stay with C4. Layer 1\'s job was just to get us close to the right region of the graph.'},
+    c2:null,
+  },
+  {
+    bnum:'Search Phase 3 of 4',btitle:'Layer 0 — expand the candidate pool, find all neighbors',
+    bsub:'This is the final and most important layer. ef_search controls how wide we search before picking the answer.',
+    al:0,lh2:'done ✓',lh1:'done ✓',lh0:'← exhaustive expansion',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1','C3','C5'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']],
+    hl:{C4:true,C3:true,C1:true,C6:true},nw:null,sv:['C4','C2','C6'],qv:true,
+    story:[
+      {t:'Enter Layer 0 with C4 as starting point',p:'Pool: {C4=2.24}. Expand C4\'s L0 neighbors: {C6, C1, C3}. Measure all three.'},
+      {t:'Surprise! C3 ties with C4',p:'Q=(6,5), C3=(5,3): d=<span class="hg">√((6−5)²+(5−3)²)=√5≈2.24</span>. Exact same distance as C4! Q is equidistant from C4 (mid-CIBIL, high income) and C3 (mid-CIBIL, low income).'},
+      {t:'Expand C3\'s neighbors too',p:'C3 connects to C5. Measure Q to C5: d=<span class="ha">√13≈3.61</span>. Pool now: <span class="hg">C4=2.24, C3=2.24</span>, C5=3.61, C6=4.24, C1=5.83. Keep top ef_search candidates.'},
+    ],
+    math:[
+      {l:'L0 start:',e:'{C4=2.24}, expand C4\'s neighbors',r:'',cls:'neu'},
+      {l:'d(Q, C3) =',e:'√((6−5)²+(5−3)²) = √(1+4) = √5',r:'≈ 2.24',cls:'win'},
+      {l:'d(Q, C6) =',e:'√((6−9)²+(5−8)²) = √(9+9) = √18',r:'≈ 4.24',cls:'neu'},
+      {l:'d(Q, C1) =',e:'√((6−1)²+(5−2)²) = √(25+9) = √34',r:'≈ 5.83',cls:'lose'},
+      {l:'d(Q, C5) =',e:'√((6−8)²+(5−2)²) = √(4+9)  = √13',r:'≈ 3.61',cls:'neu'},
+    ],
+    pool:[
+      {id:'C4',d:'2.24',fate:'win',pl:'Tied for nearest — Mid CIBIL, High Inc'},
+      {id:'C3',d:'2.24',fate:'win',pl:'Tied for nearest — Mid CIBIL, Low Inc'},
+      {id:'C5',d:'3.61',fate:'drop',pl:'3rd closest — in pool if ef_search ≥ 3'},
+      {id:'C6',d:'4.24',fate:'drop',pl:'4th — dropped unless ef_search ≥ 4'},
+      {id:'C1',d:'5.83',fate:'drop',pl:'Farthest explored — dropped'},
+    ],
+    pexp:'With ef_search=2 (our M), we keep top-2: C4 and C3. With ef_search=1, only C4 returned — C3 is missed! This is recall vs speed.',
+    c1:{cls:'co-blue',txt:'<strong>Interesting finding:</strong> Q=(6,5) is perfectly equidistant from C3=(5,3) and C4=(5,7). Both are 2.24 units away. The query customer resembles both mid-income and high-income mid-CIBIL profiles.'},
+    c2:null,
+  },
+  {
+    bnum:'Search Phase 4 of 4',btitle:'Result! Nearest neighbors found — why ef_search matters',
+    bsub:'HNSW visited 5 of 6 nodes and found the answer. See how ef_search changes which results you get.',
+    al:-1,lh2:'done ✓',lh1:'done ✓',lh0:'done ✓',
+    vL2:['C4'],vL1:['C4','C2','C6'],vL0:['C4','C2','C6','C1','C3','C5'],
+    eL2:[],eL1:[['C2','C4'],['C4','C6']],eL0:[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']],
+    hl:{C4:true,C3:true},nw:null,sv:['C4','C2','C6','C3','C5'],qv:true,
+    story:[
+      {t:'Final ranking — nearest to Q=(6,5)',p:'<span class="hg">#1: C4 (d=2.24) — Mid CIBIL, High Income</span><br><span class="hg">#1: C3 (d=2.24) — Mid CIBIL, Low Income</span><br><span class="ha">#3: C5 (d=3.61) — High CIBIL, Low Income</span>'},
+      {t:'ef_search controls what you actually return',p:'<span class="hr">ef=1:</span> Only C4 returned. C3 is missed — 50% recall. <span class="ha">ef=2:</span> C4+C3 returned — correct top-2. <span class="hg">ef=3:</span> C4+C3+C5 returned — broader context. Change ef above!'},
+      {t:'HNSW efficiency vs brute force',p:'HNSW checked 5 of 6 nodes total. <strong>Brute force always checks all 6.</strong> At scale with 1 million FAQs: HNSW checks ~20 nodes, brute force checks 1,000,000.'},
+      {t:'Real-world Bajaj Finance interpretation',p:'The query customer (CIBIL=6, Income=5) is most similar to mid-CIBIL customers. This can drive loan recommendations, interest rate setting, or fraud risk profiling based on similar past customers.'},
+    ],
+    math:[
+      {l:'Final ranking:',e:'sorted by distance to Q=(6,5)',r:'',cls:'neu'},
+      {l:'#1 C4:',e:'d = 2.24  (Mid CIBIL, High Income)',r:'✓ returned',cls:'win'},
+      {l:'#1 C3:',e:'d = 2.24  (Mid CIBIL, Low Income)',r:'✓ returned',cls:'win'},
+      {l:'#3 C5:',e:'d = 3.61  (High CIBIL, Low Income)',r:'if ef≥3',cls:'neu'},
+      {l:'Nodes visited:',e:'5 of 6  (C2 never expanded from L0)',r:'vs 6 brute',cls:'info'},
+    ],
+    pool:[
+      {id:'C4',d:'2.24',fate:'win',pl:'Top result — always returned'},
+      {id:'C3',d:'2.24',fate:'win',pl:'Top result — returned if ef_search ≥ 2'},
+      {id:'C5',d:'3.61',fate:'drop',pl:'3rd result — returned if ef_search ≥ 3'},
+    ],
+    pexp:'This is the core ef_search tradeoff: higher ef = more results checked = better recall but slower query. For Bajaj Finance production: ef_search=50 balances quality and speed.',
+    c1:{cls:'co-green',txt:'<strong>Production settings for Bajaj Finance RAG:</strong> M=16, ef_construction=200, ef_search=50. With 2000 FAQs, each query checks ~30-60 nodes instead of 2000. That\'s 30-60× faster than brute force.'},
+    c2:{cls:'co-blue',txt:'<strong>ef_search vs ef_construction:</strong> ef_construction is paid once at index time. ef_search is paid on every single query. Tune ef_search based on your latency budget.'},
+  },
+];
+
+// ─── CANVAS DRAW ───
+function mx(vx,W){return 26+vx*(W-40)/10;}
+function my(vy,H){return H-12-vy*(H-24)/10;}
+
+function drawCv(id,visN,edges,hl,newN,sv,qv,layerIdx,activeLayer){
+  const cv=document.getElementById(id);
+  if(!cv)return;
+  const W=cv.parentElement.clientWidth||540;
+  cv.width=W; cv.style.width=W+'px';
+  const H=parseInt(cv.getAttribute('height'));
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // grid
+  for(let i=1;i<=9;i++){
+    ctx.strokeStyle='rgba(255,255,255,0.035)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(mx(i,W),4);ctx.lineTo(mx(i,W),H-4);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(24,my(i,H));ctx.lineTo(W-8,my(i,H));ctx.stroke();
+    if(H>100){ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='8px JetBrains Mono,monospace';ctx.textAlign='center';ctx.fillText(i,mx(i,W),H-2);}
+  }
+
+  const ec=['rgba(91,156,246,0.55)','rgba(62,203,121,0.55)','rgba(167,139,250,0.55)'];
+  // edges
+  edges.forEach(([a,b])=>{
+    const na=ND[a],nb=ND[b];
+    ctx.beginPath();ctx.moveTo(mx(na.x,W),my(na.y,H));ctx.lineTo(mx(nb.x,W),my(nb.y,H));
+    ctx.strokeStyle=ec[layerIdx];ctx.lineWidth=1.5;ctx.globalAlpha=0.7;ctx.stroke();ctx.globalAlpha=1;
+  });
+
+  // search distance lines
+  if(qv&&mode==='search'&&sv.length>0){
+    sv.forEach(id=>{
+      const n=ND[id];
+      ctx.beginPath();ctx.moveTo(mx(Q.x,W),my(Q.y,H));ctx.lineTo(mx(n.x,W),my(n.y,H));
+      ctx.strokeStyle='rgba(240,96,96,0.35)';ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+    });
+  }
+
+  // nodes
+  visN.forEach(id=>{
+    const n=ND[id];
+    const nx=mx(n.x,W),ny=my(n.y,H);
+    const isNew=id===newN;
+    const isHL=hl&&hl[id];
+    const isVis=sv&&sv.includes(id);
+    const a=(isHL||isNew||isVis)?1:0.38;
+    const r=isNew?15:13;
+
+    ctx.globalAlpha=a;
+    if(isNew){
+      ctx.beginPath();ctx.arc(nx,ny,r+6,0,Math.PI*2);
+      ctx.strokeStyle=n.c;ctx.lineWidth=1;ctx.setLineDash([3,2]);ctx.stroke();ctx.setLineDash([]);
+    }
+    ctx.beginPath();ctx.arc(nx,ny,r,0,Math.PI*2);
+    ctx.fillStyle=n.fl;ctx.fill();
+    ctx.strokeStyle=isVis?'rgba(240,96,96,0.8)':n.st;
+    ctx.lineWidth=isNew?2:isVis?2:1.2;ctx.stroke();
+    ctx.fillStyle=n.c;ctx.font='600 10px Outfit,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(id,nx,ny);
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='8px JetBrains Mono,monospace';ctx.textBaseline='alphabetic';
+    ctx.fillText(`(${n.x},${n.y})`,nx,ny+r+9);
+    ctx.globalAlpha=1;
+  });
+
+  // query Q
+  if(qv&&mode==='search'){
+    const qx=mx(Q.x,W),qy=my(Q.y,H);
+    ctx.beginPath();ctx.arc(qx,qy,17,0,Math.PI*2);
+    ctx.strokeStyle='rgba(240,96,96,0.5)';ctx.lineWidth=1.2;ctx.setLineDash([3,2]);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(qx,qy,12,0,Math.PI*2);
+    ctx.fillStyle=Q.fl;ctx.fill();ctx.strokeStyle=Q.st;ctx.lineWidth=1.8;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='bold 9px Outfit,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Q',qx,qy);
+    ctx.fillStyle='rgba(240,96,96,0.7)';ctx.font='8px JetBrains Mono,monospace';ctx.textBaseline='alphabetic';
+    ctx.fillText('(6,5)',qx,qy+22);
+  }
+}
+
+// ─── RENDER ───
+function getSteps(){return mode==='build'?BUILD:SEARCH;}
+function getEfLabel(){return mode==='build'?'ef_construction':'ef_search';}
+
+function render(){
+  const steps=getSteps();
+  const p=steps[cur];
+  const efVal=ef;
+  const total=steps.length;
+
+  // progress
+  document.getElementById('prog-fill').style.width=((cur+1)/total*100)+'%';
+
+  // header
+  document.getElementById('mode-label').textContent=mode==='build'?'HNSW · Construction Mode':'HNSW · Search Mode';
+  document.getElementById('page-title').textContent=p.btitle;
+  document.getElementById('page-sub').textContent=p.bsub;
+
+  // ef label
+  document.getElementById('ef-label-txt').textContent=getEfLabel();
+
+  // Q legend
+  document.getElementById('q-leg').style.display=mode==='search'?'flex':'none';
+
+  // layer headers
+  [['lh2','done-layer','lc2',p.lh2,2],['lh1','done-layer','lc1',p.lh1,1],['lh0','done-layer','lc0',p.lh0,0]].forEach(([hid,cls,cid,txt,li])=>{
+    const hel=document.getElementById(hid);
+    const cel=document.getElementById(cid);
+    const isDone=txt.includes('✓');
+    const isActive=p.al===li;
+    hel.innerHTML=txt?`<span class="${isActive?'lactive-tag':'ldone-tag'}">${txt}</span>`:'';
+    cel.classList.toggle('active-layer',isActive);
+    cel.classList.toggle('done-layer',isDone&&!isActive);
+  });
+
+  // draw canvases
+  drawCv('cv2',p.vL2,p.eL2,p.hl,p.nw,p.sv,p.qv,2,p.al);
+  drawCv('cv1',p.vL1,p.eL1,p.hl,p.nw,p.sv,p.qv,1,p.al);
+  drawCv('cv0',p.vL0,p.eL0,p.hl,p.nw,p.sv,p.qv,0,p.al);
+
+  // story
+  const sw=document.getElementById('story-wrap');
+  sw.innerHTML='';
+  p.story.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='story-item';
+    const numCls=i<p.story.length-1?'sn-done':'sn-cur';
+    el.innerHTML=`<div class="story-num ${numCls}">${i+1}</div><div class="story-body"><div class="st">${s.t}</div><div class="sp">${s.p}</div></div>`;
+    sw.appendChild(el);
+    setTimeout(()=>el.classList.add('vis'),i*70);
+  });
+
+  // math
+  const mw=document.getElementById('math-wrap');
+  mw.innerHTML='';
+  p.math.forEach((m,i)=>{
+    const el=document.createElement('div');
+    el.className='math-row';
+    el.innerHTML=`<span class="ml">${m.l}</span><span class="me">${m.e}</span><span class="mr ${m.cls}">${m.r}</span>`;
+    mw.appendChild(el);
+    setTimeout(()=>el.classList.add('vis'),i*65+80);
+  });
+
+  // pool
+  document.getElementById('pool-expl').textContent=p.pexp;
+  const pw=document.getElementById('pool-wrap');
+  pw.innerHTML='';
+  p.pool.forEach((item,i)=>{
+    const inEf=i<efVal;
+    let fate=item.fate==='win'?'win':(inEf?'pool':'drop');
+    let fateLbl=fate==='win'?'✓ connected':fate==='drop'?'✗ dropped':'in pool';
+    let itemCls=fate==='win'?'pi-sel':fate==='drop'?'pi-drop':'pi-pool';
+    let fateCls=fate==='win'?'pf-win':fate==='drop'?'pf-drop':'pf-pool';
+
+    const el=document.createElement('div');
+    el.className=`pool-item ${itemCls}`;
+    const n=ND[item.id];
+    el.innerHTML=`<span class="pi-rank">#${i+1}</span>
+      <div class="pi-dot" style="background:${n.fl};border:1.5px solid ${n.st};color:${n.c}">${item.id}</div>
+      <div class="pi-info">
+        <div class="pi-name">${item.id} — ${n.desc}</div>
+        <div class="pi-dist">d = ${item.d} &nbsp;·&nbsp; ${item.pl}</div>
+      </div>
+      <span class="pi-fate ${fateCls}">${fateLbl}</span>`;
+    pw.appendChild(el);
+    setTimeout(()=>el.classList.add('vis'),i*70+50);
+  });
+
+  // callouts
+  const c1=document.getElementById('callout1');
+  const c2=document.getElementById('callout2');
+  if(p.c1){c1.className=`callout ${p.c1.cls}`;c1.innerHTML=p.c1.txt;c1.style.display='block';}
+  else c1.style.display='none';
+  if(p.c2){c2.className=`callout ${p.c2.cls}`;c2.innerHTML=p.c2.txt;c2.style.display='block';}
+  else c2.style.display='none';
+
+  // nav
+  document.getElementById('pb').disabled=cur===0;
+  document.getElementById('nb').disabled=cur===total-1;
+  document.getElementById('sc').textContent=`${cur+1} / ${total}`;
+}
+
+// ─── COMPARE MODE ───
+function drawCompare(){
+  const W1=document.getElementById('cv-cmp1').parentElement.clientWidth||400;
+  const W2=document.getElementById('cv-cmp2').parentElement.clientWidth||400;
+  [['cv-cmp1',1],['cv-cmp2',6]].forEach(([cvId,efV])=>{
+    const cv=document.getElementById(cvId);
+    const W=cv.parentElement.clientWidth||400;
+    cv.width=W; cv.style.width=W+'px';
+    const H=280;
+    const ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,W,H);
+
+    for(let i=1;i<=9;i++){
+      ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=0.5;
+      ctx.beginPath();ctx.moveTo(mx(i,W),4);ctx.lineTo(mx(i,W),H-12);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(22,my(i,H));ctx.lineTo(W-8,my(i,H));ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='7px JetBrains Mono,monospace';ctx.textAlign='center';
+      ctx.fillText(i,mx(i,W),H-3);
+    }
+
+    // Final edges based on ef
+    const edgesEf1=[['C4','C6'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']];
+    const edgesEf6=[['C4','C6'],['C1','C2'],['C1','C4'],['C3','C4'],['C3','C1'],['C3','C5'],['C5','C6']];
+    const edgesUsed=efV===1?edgesEf1:edgesEf6;
+
+    edgesUsed.forEach(([a,b])=>{
+      const na=ND[a],nb=ND[b];
+      ctx.beginPath();ctx.moveTo(mx(na.x,W),my(na.y,H));ctx.lineTo(mx(nb.x,W),my(nb.y,H));
+      ctx.strokeStyle=efV===1?'rgba(240,96,96,0.5)':'rgba(62,203,121,0.5)';ctx.lineWidth=1.4;ctx.globalAlpha=0.8;ctx.stroke();ctx.globalAlpha=1;
+    });
+
+    Object.keys(ND).forEach(id=>{
+      const n=ND[id]; const nx=mx(n.x,W),ny=my(n.y,H);
+      ctx.beginPath();ctx.arc(nx,ny,12,0,Math.PI*2);
+      ctx.fillStyle=n.fl;ctx.fill();ctx.strokeStyle=n.st;ctx.lineWidth=1.2;ctx.stroke();
+      ctx.fillStyle=n.c;ctx.font='600 9px Outfit,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(id,nx,ny);
+      ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font='7px JetBrains Mono,monospace';ctx.textBaseline='alphabetic';
+      ctx.fillText(`(${n.x},${n.y})`,nx,ny+14);
+    });
+
+    // highlight missing edge
+    if(efV===1){
+      ctx.strokeStyle='rgba(240,96,96,0.2)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      const n1=ND['C1'],n2=ND['C2'];
+      ctx.beginPath();ctx.moveTo(mx(n1.x,W),my(n1.y,H));ctx.lineTo(mx(n2.x,W),my(n2.y,H));ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(240,96,96,0.7)';ctx.font='8px JetBrains Mono,monospace';ctx.textAlign='center';
+      ctx.fillText('missing!',mx(1.5,W),my(5,H));
+    }
+  });
+}
+
+function switchMode(m,el){
+  mode=m; cur=0;
+  document.querySelectorAll('.mode-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+
+  const mg=document.getElementById('main-grid');
+  const cp=document.getElementById('compare-panel');
+  const cb=document.getElementById('ctrl-bar');
+
+  if(m==='compare'){
+    mg.style.display='none'; cp.style.display='block';
+    cb.style.display='none';
+    document.getElementById('page-title').textContent='ef_construction=1 vs ef=6 — side by side comparison';
+    document.getElementById('page-sub').textContent='See exactly which edges are missing when ef is too low. The dashed red line shows a connection that ef=1 misses entirely.';
+    document.getElementById('mode-label').textContent='HNSW · ef Compare Mode';
+    document.getElementById('prog-fill').style.width='100%';
+    setTimeout(drawCompare,60);
+  } else {
+    mg.style.display='grid'; cp.style.display='none';
+    cb.style.display='flex';
+    render();
+  }
+}
+
+function setEf(v,el){
+  ef=v;
+  document.querySelectorAll('.ef-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(mode==='compare') drawCompare(); else render();
+}
+function nextStep(){if(cur<getSteps().length-1){cur++;render();}}
+function prevStep(){if(cur>0){cur--;render();}}
+function restart(){cur=0;render();}
+
+window.addEventListener('resize',()=>{if(mode==='compare')drawCompare();else render();});
+setTimeout(render,80);
+</script>
+</body>
+</html>

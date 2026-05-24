@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IVF + PQ + Tuning — Vector Index Playground</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#090b10;--s1:#0f1219;--s2:#151a24;--s3:#1b2030;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#dde2f0;--muted:#7a839e;--dim:#3d4560;
+  --blue:#5b9cf6;--bl:rgba(91,156,246,0.12);--bb:rgba(91,156,246,0.35);
+  --green:#3ecb79;--gl:rgba(62,203,121,0.12);--gb:rgba(62,203,121,0.35);
+  --amber:#f5a623;--al:rgba(245,166,35,0.12);--ab:rgba(245,166,35,0.35);
+  --red:#f06060;--rl:rgba(240,96,96,0.12);--rb:rgba(240,96,96,0.35);
+  --purple:#a78bfa;--pl:rgba(167,139,250,0.12);--pb:rgba(167,139,250,0.35);
+  --teal:#2dd4bf;--tl:rgba(45,212,191,0.12);--tb:rgba(45,212,191,0.35);
+  --pink:#f472b6;--pkl:rgba(244,114,182,0.12);--pkb:rgba(244,114,182,0.35);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.022) 1px,transparent 1px);background-size:30px 30px;pointer-events:none;z-index:0;}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:18px 14px 80px;}
+
+/* TOP NAV */
+.top-nav{display:flex;gap:4px;background:var(--s1);border:1px solid var(--border2);border-radius:14px;padding:5px;margin-bottom:18px;flex-wrap:wrap;}
+.tnav{flex:1;min-width:100px;text-align:center;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s;border:1px solid transparent;}
+.tnav:hover{color:var(--text);}
+.tnav.on{background:var(--s3);border-color:var(--border2);color:var(--text);}
+.tnav .sub{display:block;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--dim);margin-top:1px;text-transform:uppercase;letter-spacing:.07em;}
+
+/* PAGE HEADER */
+.ph{margin-bottom:14px;}
+.ph-tag{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;padding:3px 10px;border-radius:20px;margin-bottom:7px;}
+.ph h1{font-size:18px;font-weight:700;margin-bottom:3px;}
+.ph p{font-size:12px;color:var(--muted);line-height:1.6;max-width:640px;}
+
+/* PROGRESS */
+.prog{height:3px;background:var(--s2);border-radius:2px;margin-bottom:14px;overflow:hidden;}
+.prog-f{height:100%;border-radius:2px;transition:width .4s;}
+
+/* CTRL */
+.ctrl{display:flex;gap:7px;align-items:center;flex-wrap:wrap;background:var(--s1);border:1px solid var(--border2);border-radius:11px;padding:9px 13px;margin-bottom:14px;}
+.clabel{font-size:9px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);}
+.cbtn{padding:4px 12px;font-size:11px;font-weight:600;border:1px solid var(--border2);border-radius:6px;cursor:pointer;background:var(--s2);color:var(--muted);transition:all .15s;font-family:'JetBrains Mono',monospace;}
+.cbtn:hover{color:var(--text);}
+.cbtn.on{background:var(--bl);border-color:var(--bb);color:var(--blue);}
+.nbtn{padding:4px 12px;font-size:11px;font-weight:600;border:1px solid var(--border2);border-radius:6px;cursor:pointer;background:var(--s2);color:var(--text);transition:all .15s;}
+.nbtn:hover:not(:disabled){background:var(--s3);}
+.nbtn:disabled{opacity:.3;cursor:default;}
+.spill{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:3px 9px;}
+.dvdr{width:1px;height:16px;background:var(--border2);}
+.rbtn{margin-left:auto;padding:4px 10px;font-size:10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:transparent;color:var(--dim);transition:all .15s;}
+.rbtn:hover{border-color:var(--border2);color:var(--muted);}
+
+/* GRID */
+.grid2{display:grid;grid-template-columns:1fr 360px;gap:12px;align-items:start;}
+@media(max-width:780px){.grid2{grid-template-columns:1fr;}}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:700px){.grid3{grid-template-columns:1fr;}}
+.grid2eq{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:600px){.grid2eq{grid-template-columns:1fr;}}
+
+/* CARD */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:11px;padding:13px;}
+.card.hl-amber{border-color:var(--ab);}
+.card.hl-green{border-color:var(--gb);}
+.card.hl-blue{border-color:var(--bb);}
+.ct{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);font-family:'JetBrains Mono',monospace;margin-bottom:9px;}
+
+/* STORY */
+.sitem{display:flex;gap:9px;margin-bottom:11px;opacity:0;transform:translateY(5px);transition:opacity .3s,transform .3s;}
+.sitem.vis{opacity:1;transform:none;}
+.snum{flex-shrink:0;width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.sn-d{background:var(--gl);border:1px solid var(--gb);color:var(--green);}
+.sn-c{background:var(--al);border:1px solid var(--ab);color:var(--amber);}
+.sn-w{background:var(--s2);border:1px solid var(--border);color:var(--dim);}
+.st{font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.sp{font-size:11px;color:var(--muted);line-height:1.65;}
+.sp .hb{color:var(--blue);font-weight:600;}
+.sp .hg{color:var(--green);font-weight:600;}
+.sp .ha{color:var(--amber);font-weight:600;}
+.sp .hr{color:var(--red);font-weight:600;}
+.sp .hp{color:var(--purple);font-weight:600;}
+.sp .ht{color:var(--teal);font-weight:600;}
+.sp strong{color:var(--text);}
+
+/* MATH */
+.mrow{display:flex;align-items:baseline;gap:5px;padding:4px 0;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0;transform:translateX(-4px);transition:opacity .25s,transform .25s;}
+.mrow.vis{opacity:1;transform:none;}
+.mrow:last-child{border-bottom:none;}
+.ml{color:var(--dim);min-width:60px;font-size:9px;flex-shrink:0;}
+.me{flex:1;color:var(--muted);}
+.mr{font-weight:600;}
+.mr.win{color:var(--green);}
+.mr.lose{color:var(--red);}
+.mr.neu{color:var(--amber);}
+.mr.inf{color:var(--blue);}
+
+/* CALLOUT */
+.co{border-radius:8px;padding:8px 11px;font-size:11px;line-height:1.65;margin-top:7px;}
+.co strong{font-weight:700;}
+.co-a{background:var(--al);border:1px solid var(--ab);color:var(--amber);}
+.co-g{background:var(--gl);border:1px solid var(--gb);color:var(--green);}
+.co-b{background:var(--bl);border:1px solid var(--bb);color:var(--blue);}
+.co-r{background:var(--rl);border:1px solid var(--rb);color:var(--red);}
+.co-p{background:var(--pl);border:1px solid var(--pb);color:var(--purple);}
+.co-t{background:var(--tl);border:1px solid var(--tb);color:var(--teal);}
+
+/* POOL */
+.pitem{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;border:1px solid transparent;margin-bottom:4px;opacity:0;transform:translateY(4px);transition:opacity .22s,transform .22s,background .3s,border-color .3s;}
+.pitem.vis{opacity:1;transform:none;}
+.pi-s{background:var(--gl);border-color:var(--gb);}
+.pi-d{background:var(--rl);border-color:var(--rb);opacity:.5!important;}
+.pi-p{background:var(--s2);border-color:var(--border);}
+.pi-rank{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:var(--dim);width:13px;flex-shrink:0;}
+.pi-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+.pi-nm{font-size:10px;font-weight:600;color:var(--text);}
+.pi-dt{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);}
+.pi-fate{font-size:9px;font-weight:700;padding:2px 6px;border-radius:7px;flex-shrink:0;margin-left:auto;}
+.pf-w{background:var(--gl);color:var(--green);border:1px solid var(--gb);}
+.pf-d{background:var(--rl);color:var(--red);border:1px solid var(--rb);}
+.pf-p{background:var(--s2);color:var(--muted);border:1px solid var(--border2);}
+
+/* IVF CANVAS */
+.icanvas{display:block;width:100%;border-radius:9px;border:1px solid var(--border);}
+
+/* PQ STYLES */
+.pq-pixel-grid{display:grid;gap:3px;margin:8px 0;}
+.pq-pixel{border-radius:4px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;}
+.pq-pixel:hover{transform:scale(1.08);z-index:2;}
+.pq-pixel.selected{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--amber);}
+.pq-subvec{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;margin:4px 0;}
+.pq-centroid{background:var(--s2);border:1px solid var(--border2);border-radius:7px;padding:7px 10px;display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer;transition:all .15s;}
+.pq-centroid:hover,.pq-centroid.active{border-color:var(--ab);background:var(--al);}
+.pq-centroid .cc{width:22px;height:22px;border-radius:50%;flex-shrink:0;}
+.pq-centroid .cn{font-size:10px;font-weight:600;color:var(--text);}
+.pq-centroid .cd{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.pq-centroid .cf{margin-left:auto;font-size:9px;font-weight:600;}
+.rgb-bar{height:8px;border-radius:4px;margin:2px 0;}
+.slider-row{display:flex;align-items:center;gap:8px;margin:5px 0;}
+.slider-row label{font-size:10px;color:var(--muted);min-width:14px;font-family:'JetBrains Mono',monospace;}
+.slider-row input[type=range]{flex:1;height:4px;accent-color:var(--blue);}
+.slider-row .val{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text);min-width:28px;text-align:right;}
+.color-swatch{width:100%;height:44px;border-radius:7px;border:1px solid var(--border2);margin:6px 0;transition:background .3s;}
+.badge{display:inline-block;padding:2px 7px;border-radius:9px;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;}
+.badge-a{background:var(--al);color:var(--amber);border:1px solid var(--ab);}
+.badge-g{background:var(--gl);color:var(--green);border:1px solid var(--gb);}
+.badge-b{background:var(--bl);color:var(--blue);border:1px solid var(--bb);}
+.badge-p{background:var(--pl);color:var(--purple);border:1px solid var(--pb);}
+.badge-r{background:var(--rl);color:var(--red);border:1px solid var(--rb);}
+
+/* TUNING */
+.tune-slider{margin:10px 0;}
+.tune-slider label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;}
+.tune-slider label span{color:var(--text);font-weight:600;font-family:'JetBrains Mono',monospace;}
+.tune-slider input{width:100%;height:5px;accent-color:var(--blue);}
+.metric-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);}
+.metric-row:last-child{border-bottom:none;}
+.metric-label{font-size:10px;color:var(--muted);min-width:90px;}
+.metric-bar-wrap{flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden;}
+.metric-bar{height:100%;border-radius:4px;transition:width .4s;}
+.metric-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text);min-width:38px;text-align:right;font-weight:600;}
+.config-chip{display:inline-block;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;margin:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- TOP NAV -->
+<div class="top-nav">
+  <div class="tnav on" id="tab-ivf" onclick="goTab('ivf',this)">IVF Index<span class="sub">Inverted File Index</span></div>
+  <div class="tnav" id="tab-pq" onclick="goTab('pq',this)">Product Quantization<span class="sub">RGB Compression Demo</span></div>
+  <div class="tnav" id="tab-tune" onclick="goTab('tune',this)">Tuning Lab<span class="sub">nprobe · nlist · M · ef</span></div>
+</div>
+
+<!-- ═══════════════════ IVF PANEL ═══════════════════ -->
+<div id="ivf-panel">
+<div class="ph">
+  <div class="ph-tag" style="background:var(--bl);color:var(--blue);border:1px solid var(--bb)">IVF · Inverted File Index · Bajaj Finance FAQs</div>
+  <h1>How does IVF search work?</h1>
+  <p>IVF splits your vector space into <strong>nlist clusters</strong> (Voronoi cells). At query time, it only searches the <strong>nprobe nearest clusters</strong> instead of everything — like looking in the right filing cabinet first.</p>
+</div>
+<div class="prog"><div class="prog-f" id="ivf-prog" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--teal))"></div></div>
+<div class="ctrl">
+  <span class="clabel">nlist (clusters)</span>
+  <button class="cbtn" onclick="setNlist(2,this)">2</button>
+  <button class="cbtn on" id="nl3" onclick="setNlist(3,this)">3</button>
+  <button class="cbtn" onclick="setNlist(4,this)">4</button>
+  <div class="dvdr"></div>
+  <span class="clabel">nprobe (search)</span>
+  <button class="cbtn" id="np1" onclick="setNprobe(1,this)">1</button>
+  <button class="cbtn on" id="np2" onclick="setNprobe(2,this)">2</button>
+  <button class="cbtn" onclick="setNprobe(3,this)">3 (all)</button>
+  <div class="dvdr"></div>
+  <button class="nbtn" id="ivf-pb" onclick="ivfPrev()" disabled>← prev</button>
+  <span class="spill" id="ivf-sc">1 / 5</span>
+  <button class="nbtn" id="ivf-nb" onclick="ivfNext()">next →</button>
+  <button class="rbtn" onclick="ivfRestart()">↺</button>
+</div>
+<div class="grid2">
+  <div>
+    <canvas class="icanvas" id="ivf-cv" height="340"></canvas>
+    <div class="co co-b" style="margin-top:8px;font-size:10px" id="ivf-canvas-note">Voronoi cells divide the space. Each cluster has one centroid (★). Your query Q searches the nearest nprobe centroids only.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">What's happening</div>
+      <div id="ivf-story"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Distance calculations</div>
+      <div id="ivf-math"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Cluster probe results</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:7px" id="ivf-pool-expl"></div>
+      <div id="ivf-pool"></div>
+      <div class="co" id="ivf-co1" style="display:none"></div>
+      <div class="co" id="ivf-co2" style="display:none"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════ PQ PANEL ═══════════════════ -->
+<div id="pq-panel" style="display:none">
+<div class="ph">
+  <div class="ph-tag" style="background:var(--pl);color:var(--purple);border:1px solid var(--pb)">PQ · Product Quantization · RGB Color Compression</div>
+  <h1>Product Quantization — compressing vectors with codebooks</h1>
+  <p>PQ splits each vector into <strong>sub-vectors</strong> and replaces each sub-vector with the nearest <strong>centroid ID</strong> from a small codebook. 192 bytes → 2 bytes. Use the RGB pixel demo below to feel it.</p>
+</div>
+<div class="prog"><div class="prog-f" id="pq-prog" style="width:0%;background:linear-gradient(90deg,var(--purple),var(--pink))"></div></div>
+<div class="ctrl">
+  <span class="clabel">PQ segments (m)</span>
+  <button class="cbtn on" id="pq-m1" onclick="setPQm(1,this)">m=1</button>
+  <button class="cbtn" id="pq-m2" onclick="setPQm(2,this)">m=2</button>
+  <button class="cbtn" id="pq-m3" onclick="setPQm(3,this)">m=3</button>
+  <div class="dvdr"></div>
+  <span class="clabel">codebook size (k)</span>
+  <button class="cbtn on" id="pq-k4" onclick="setPQk(4,this)">k=4</button>
+  <button class="cbtn" id="pq-k8" onclick="setPQk(8,this)">k=8</button>
+  <button class="cbtn" id="pq-k256" onclick="setPQk(256,this)">k=256</button>
+  <div class="dvdr"></div>
+  <button class="nbtn" id="pq-pb" onclick="pqPrev()" disabled>← prev</button>
+  <span class="spill" id="pq-sc">1 / 5</span>
+  <button class="nbtn" id="pq-nb" onclick="pqNext()">next →</button>
+  <button class="rbtn" onclick="pqRestart()">↺</button>
+</div>
+
+<!-- PQ main content — steps shown/hidden -->
+<div id="pq-content"></div>
+</div>
+
+<!-- ═══════════════════ TUNE PANEL ═══════════════════ -->
+<div id="tune-panel" style="display:none">
+<div class="ph">
+  <div class="ph-tag" style="background:var(--gl);color:var(--green);border:1px solid var(--gb)">Tuning Lab · nlist · nprobe · M · ef · PQ segments</div>
+  <h1>Index tuning — the speed vs recall tradeoff</h1>
+  <p>Every parameter is a dial between <strong>speed</strong> (search fewer candidates) and <strong>recall</strong> (find the true nearest neighbor). Drag the sliders to see how your Bajaj Finance RAG pipeline behaves.</p>
+</div>
+<div class="grid2eq" style="margin-bottom:14px">
+  <div class="card">
+    <div class="ct">IVF Parameters</div>
+    <div class="tune-slider"><label>nlist (clusters) <span id="tv-nlist">100</span></label><input type="range" min="10" max="500" value="100" oninput="tune();" id="ts-nlist"></div>
+    <div class="tune-slider"><label>nprobe (clusters searched) <span id="tv-nprobe">10</span></label><input type="range" min="1" max="100" value="10" oninput="tune();" id="ts-nprobe"></div>
+    <div class="co co-b" style="margin-top:4px;font-size:10px" id="ivf-rule"></div>
+  </div>
+  <div class="card">
+    <div class="ct">HNSW Parameters</div>
+    <div class="tune-slider"><label>M (neighbors per node) <span id="tv-M">16</span></label><input type="range" min="4" max="64" value="16" oninput="tune();" id="ts-M"></div>
+    <div class="tune-slider"><label>ef_construction <span id="tv-efc">200</span></label><input type="range" min="16" max="500" value="200" oninput="tune();" id="ts-efc"></div>
+    <div class="tune-slider"><label>ef_search <span id="tv-efs">50</span></label><input type="range" min="1" max="200" value="50" oninput="tune();" id="ts-efs"></div>
+  </div>
+  <div class="card">
+    <div class="ct">PQ Compression</div>
+    <div class="tune-slider"><label>PQ segments m <span id="tv-pqm">8</span></label><input type="range" min="1" max="32" value="8" oninput="tune();" id="ts-pqm"></div>
+    <div class="tune-slider"><label>Codebook size k (bits) <span id="tv-pqk">8</span></label><input type="range" min="4" max="12" value="8" oninput="tune();" id="ts-pqk"></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Vector dim=128. Original: <span style="color:var(--text);font-weight:600" id="tune-orig-bytes">512 bytes</span> → Compressed: <span style="color:var(--green);font-weight:600" id="tune-comp-bytes">8 bytes</span></div>
+  </div>
+  <div class="card">
+    <div class="ct">Corpus size</div>
+    <div class="tune-slider"><label>FAQ docs in index <span id="tv-n">2000</span></label><input type="range" min="100" max="1000000" value="2000" oninput="tune();" id="ts-n"></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px" id="tune-n-note"></div>
+  </div>
+</div>
+
+<!-- Metrics -->
+<div class="card" style="margin-bottom:12px">
+  <div class="ct">Live performance metrics — Bajaj Finance RAG (128-dim embeddings)</div>
+  <div class="metric-row"><div class="metric-label">Recall@10</div><div class="metric-bar-wrap"><div class="metric-bar" id="mb-recall" style="background:var(--green)"></div></div><div class="metric-val" id="mv-recall">—</div></div>
+  <div class="metric-row"><div class="metric-label">Query speed</div><div class="metric-bar-wrap"><div class="metric-bar" id="mb-speed" style="background:var(--blue)"></div></div><div class="metric-val" id="mv-speed">—</div></div>
+  <div class="metric-row"><div class="metric-label">Memory usage</div><div class="metric-bar-wrap"><div class="metric-bar" id="mb-mem" style="background:var(--purple)"></div></div><div class="metric-val" id="mv-mem">—</div></div>
+  <div class="metric-row"><div class="metric-label">Index build time</div><div class="metric-bar-wrap"><div class="metric-bar" id="mb-build" style="background:var(--amber)"></div></div><div class="metric-val" id="mv-build">—</div></div>
+</div>
+
+<div class="grid2eq" style="margin-bottom:12px">
+  <div class="card">
+    <div class="ct">Current config verdict</div>
+    <div id="tune-verdict" style="font-size:12px;line-height:1.7;color:var(--muted)"></div>
+  </div>
+  <div class="card">
+    <div class="ct">Recommended config for Bajaj Finance (2000 FAQs)</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.8">
+      <div><span class="config-chip" style="background:var(--bl);color:var(--blue);border:1px solid var(--bb)">FAISS IVF+PQ</span> nlist=50, nprobe=10, m=16, k=8bits</div>
+      <div style="margin-top:4px"><span class="config-chip" style="background:var(--pl);color:var(--purple);border:1px solid var(--pb)">ChromaDB HNSW</span> M=16, ef_construction=200, ef_search=50</div>
+      <div style="margin-top:4px"><span class="config-chip" style="background:var(--gl);color:var(--green);border:1px solid var(--gb)">Recall target</span> ≥95% recall@10 at &lt;20ms per query</div>
+      <div style="margin-top:8px;font-size:10px;padding:7px 9px;background:var(--s2);border-radius:7px;border:1px solid var(--border)">At 2000 docs, brute force flat search (&lt;5ms) often beats IVF. IVF shines at 100k+ docs where brute force takes &gt;100ms.</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="ct">When to use what — decision guide</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:4px">
+    <div style="padding:10px;background:var(--s2);border-radius:8px;border:1px solid var(--bl)">
+      <div style="font-size:10px;font-weight:700;color:var(--blue);margin-bottom:5px">FLAT (Brute Force)</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.7">✓ Dataset &lt; 50k<br>✓ Need 100% recall<br>✓ Unlimited memory<br>✗ Slow at large scale</div>
+    </div>
+    <div style="padding:10px;background:var(--s2);border-radius:8px;border:1px solid var(--gb)">
+      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:5px">HNSW (ChromaDB)</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.7">✓ 50k–10M vectors<br>✓ Fast queries (log n)<br>✓ Good recall with ef<br>✗ High memory use</div>
+    </div>
+    <div style="padding:10px;background:var(--s2);border-radius:8px;border:1px solid var(--pb)">
+      <div style="font-size:10px;font-weight:700;color:var(--purple);margin-bottom:5px">IVF+PQ (FAISS)</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.7">✓ 10M+ vectors<br>✓ Low memory (PQ)<br>✓ GPU friendly<br>✗ Complex to tune</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  IVF DATA
+// ══════════════════════════════════════════
+let nlist=3, nprobe=2, ivfCur=0;
+
+const FAQ_CLUSTERS=[
+  {name:'Loan Eligibility',color:'#5b9cf6',cx:160,cy:100,pts:[{x:130,y:80},{x:170,y:70},{x:150,y:110},{x:190,y:90},{x:140,y:130},{x:180,y:120}]},
+  {name:'EMI & Repayment',color:'#3ecb79',cx:340,cy:180,pts:[{x:310,y:160},{x:360,y:150},{x:330,y:200},{x:370,y:190},{x:320,y:220},{x:355,y:210}]},
+  {name:'Interest Rates',color:'#f5a623',cx:200,cy:270,pts:[{x:170,y:250},{x:220,y:240},{x:190,y:280},{x:230,y:270},{x:175,y:300},{x:215,y:295}]},
+  {name:'KYC & Documents',color:'#a78bfa',cx:430,cy:100,pts:[{x:405,y:80},{x:450,y:75},{x:420,y:115},{x:460,y:105},{x:408,y:130},{x:445,y:125}]},
+];
+
+const QUERY={x:290,y:200,label:'Q'};
+
+const IVF_STEPS=[
+  {
+    title:'Training — k-means clusters the FAQ space',
+    sub:'Before any query, IVF runs k-means to find nlist centroids. Each FAQ doc is assigned to its nearest centroid.',
+    showClusters:true,showQuery:false,probeClusters:[],nearestDocs:[],showVoronoi:true,
+    story:[
+      {t:'What is an IVF index?',p:'<strong>IVF = Inverted File Index.</strong> Think of it like a library with filing cabinets. Instead of searching every book, you first figure out which cabinet to open.'},
+      {t:'k-means training divides the space',p:'During <strong>offline training</strong>, k-means runs on your FAQ embeddings and finds <span class="hb">nlist centroids</span> (cluster centers). Each centroid represents a "topic region" in embedding space.'},
+      {t:'Every doc is assigned to one cluster',p:'Each FAQ document gets assigned to its <strong>nearest centroid</strong>. "What is my EMI?" → EMI cluster. "What documents needed?" → KYC cluster. This is the inverted file (centroid → list of doc IDs).'},
+    ],
+    math:[
+      {l:'nlist =',e:'3 clusters (configurable)',r:'',cls:'inf'},
+      {l:'Training:',e:'k-means on all FAQ embeddings',r:'one-time cost',cls:'neu'},
+      {l:'Each doc:',e:'assigned to nearest centroid',r:'',cls:'neu'},
+      {l:'Memory:',e:'store centroid vectors + inverted lists',r:'',cls:'inf'},
+    ],
+    poolExpl:'No query yet. Below shows our 3 topic clusters and how many FAQ docs each holds.',
+    pool:[
+      {id:'Loan Eligibility',d:'centroid=(160,100)',fate:'pool',pl:'6 FAQ docs',c:'#5b9cf6'},
+      {id:'EMI & Repayment',d:'centroid=(340,180)',fate:'pool',pl:'6 FAQ docs',c:'#3ecb79'},
+      {id:'Interest Rates',d:'centroid=(200,270)',fate:'pool',pl:'6 FAQ docs',c:'#f5a623'},
+    ],
+    c1:{cls:'co-b',txt:'<strong>Analogy:</strong> Imagine 2000 FAQ documents filed into 100 topic folders. When a query arrives, you only open the 10 most relevant folders (nprobe=10) instead of reading all 2000 docs.'},
+    c2:null,
+  },
+  {
+    title:'Query arrives — Q = "How to calculate my EMI?"',
+    sub:'A new loan customer query embedding arrives. IVF first finds which centroids it is closest to.',
+    showClusters:true,showQuery:true,probeClusters:[],nearestDocs:[],showVoronoi:true,
+    story:[
+      {t:'New query embedding Q=(290,200)',p:'A customer asks "How to calculate my EMI?" The text gets embedded into a 128-dim vector. In our 2D demo, this lands at <span class="ha">Q=(290,200)</span>.'},
+      {t:'Step 1: measure distance to ALL centroids',p:'IVF measures distance from Q to each of the <span class="hb">nlist</span> centroid vectors. This is fast — nlist is small (typically 100–1000), not millions.'},
+      {t:'nprobe decides how many to probe',p:'Sort centroids by distance. Take the top <span class="ha">nprobe</span> nearest ones. Those clusters will be fully searched. The rest are skipped entirely.'},
+    ],
+    math:[
+      {l:'Q =',e:'(290, 200)  — EMI query embedding',r:'',cls:'neu'},
+      {l:'d(Q, C1) =',e:'dist(Q, Loan Eligibility centroid)',r:'≈ 147',cls:'neu'},
+      {l:'d(Q, C2) =',e:'dist(Q, EMI centroid)',r:'≈ 51',cls:'win'},
+      {l:'d(Q, C3) =',e:'dist(Q, Interest Rates centroid)',r:'≈ 91',cls:'neu'},
+    ],
+    poolExpl:'Centroid distances from query Q. nprobe controls how many clusters we open.',
+    pool:[
+      {id:'EMI & Repayment',d:'d ≈ 51',fate:'win',pl:'Nearest centroid → probed',c:'#3ecb79'},
+      {id:'Interest Rates',d:'d ≈ 91',fate:'pool',pl:'2nd nearest → probed if nprobe≥2',c:'#f5a623'},
+      {id:'Loan Eligibility',d:'d ≈ 147',fate:'drop',pl:'Farthest → skipped',c:'#5b9cf6'},
+    ],
+    c1:{cls:'co-a',txt:'<strong>Key insight:</strong> We only computed 3 distances (one per centroid), not 2000! Finding nearest centroids is O(nlist) not O(n).'},
+    c2:null,
+  },
+  {
+    title:'Probe the nearest cluster — exhaustive search inside',
+    sub:'HNSW searches nprobe cluster fully. Every doc inside the cluster is compared to Q.',
+    showClusters:true,showQuery:true,probeClusters:[1],nearestDocs:[],showVoronoi:true,
+    story:[
+      {t:'Open the nearest filing cabinet',p:'The EMI & Repayment cluster is closest (d≈51). IVF opens this cluster and does a <strong>brute-force search</strong> through all 6 docs inside it.'},
+      {t:'Full comparison within the cluster',p:'All 6 EMI docs are compared against Q. This is exact — no approximation here. Best match found: <span class="hg">"EMI calculation formula" (d=38)</span>.'},
+      {t:'nprobe=1 stops here — but is that enough?',p:'With nprobe=1, we only opened 1 cluster. What if the true nearest doc is in the Interest Rates cluster? Change <span class="ha">nprobe=2</span> above to see what we gain.'},
+    ],
+    math:[
+      {l:'Probe C2:',e:'EMI & Repayment (6 docs)',r:'brute force',cls:'inf'},
+      {l:'Best match:',e:'"EMI calculation formula"',r:'d = 38',cls:'win'},
+      {l:'Docs checked:',e:'6 (only this cluster)',r:'vs 18 total',cls:'neu'},
+      {l:'Recall risk:',e:'missing docs in other clusters!',r:'nprobe=1',cls:'lose'},
+    ],
+    poolExpl:'With nprobe=1, only the EMI cluster is searched. Increase nprobe to search more clusters.',
+    pool:[
+      {id:'EMI cluster searched',d:'6 docs checked',fate:'win',pl:'Full brute-force inside cluster',c:'#3ecb79'},
+      {id:'Interest Rates',d:'skipped',fate:'drop',pl:'Not probed with nprobe=1',c:'#f5a623'},
+      {id:'Loan Eligibility',d:'skipped',fate:'drop',pl:'Not probed — too far',c:'#5b9cf6'},
+    ],
+    c1:{cls:'co-r',txt:'<strong>nprobe=1 risk:</strong> If a relevant FAQ is just across the cluster boundary (near the edge), it gets missed completely. This is why recall drops with low nprobe.'},
+    c2:null,
+  },
+  {
+    title:'nprobe=2 — probe a second cluster for better recall',
+    sub:'With nprobe=2, we also search the Interest Rates cluster. More docs checked, better chance of finding the true nearest.',
+    showClusters:true,showQuery:true,probeClusters:[1,2],nearestDocs:[],showVoronoi:true,
+    story:[
+      {t:'Open a second cabinet — Interest Rates',p:'With nprobe=2, IVF also opens the Interest Rates cluster (d≈91). It brute-forces all 6 docs inside. Total docs checked: 12 out of 18.'},
+      {t:'Why does this help?',p:'Cluster boundaries are artificial — two docs on either side of a boundary can be very close in reality. Searching more clusters catches <strong>boundary cases</strong> where the nearest doc lives in the "wrong" cluster.'},
+      {t:'Recall vs speed tradeoff',p:'nprobe=1: check 6 docs, fast, ~70% recall. nprobe=2: check 12 docs, 2× slower, ~90% recall. nprobe=3 (all): brute force, 100% recall but defeats the purpose.'},
+    ],
+    math:[
+      {l:'Probe C2:',e:'EMI (6 docs) → best d=38',r:'✓',cls:'win'},
+      {l:'Probe C3:',e:'Interest Rates (6 docs) → best d=72',r:'✓',cls:'win'},
+      {l:'Total checked:',e:'12 docs out of 18',r:'67%',cls:'neu'},
+      {l:'Docs skipped:',e:'6 (Loan Eligibility cluster)',r:'33% saved',cls:'inf'},
+    ],
+    poolExpl:'With nprobe=2, two clusters are searched. The EMI cluster gives our best match. Interest Rates adds safety against boundary misses.',
+    pool:[
+      {id:'EMI cluster',d:'6 docs — best d=38',fate:'win',pl:'Primary nearest cluster',c:'#3ecb79'},
+      {id:'Interest Rates',d:'6 docs — best d=72',fate:'win',pl:'2nd probe — catches edge cases',c:'#f5a623'},
+      {id:'Loan Eligibility',d:'skipped',fate:'drop',pl:'Too far — safely skipped',c:'#5b9cf6'},
+    ],
+    c1:{cls:'co-g',txt:'<strong>Rule of thumb:</strong> nprobe = √nlist is a good starting point. With nlist=100 → nprobe=10. For Bajaj Finance 2000 FAQs with nlist=50: nprobe=7–10.'},
+    c2:{cls:'co-a',txt:'<strong>Boundary problem:</strong> A doc at the edge of EMI cluster and Interest Rates cluster might have d=45 — closer than the best EMI doc (d=38)! nprobe=1 misses it.'},
+  },
+  {
+    title:'Final result — merge results and return top-k',
+    sub:'All probed clusters are searched. Merge all candidate docs, sort by distance, return top-k results.',
+    showClusters:true,showQuery:true,probeClusters:[1,2],nearestDocs:[1,2],showVoronoi:true,
+    story:[
+      {t:'Merge all candidates across probed clusters',p:'From EMI cluster: best d=38. From Interest Rates: best d=72. Sort all by distance. Return top-k. Final answer: <span class="hg">"EMI Calculation Formula" (d=38)</span>.'},
+      {t:'IVF is approximate — and that\'s okay',p:'If the true nearest doc is in the Loan Eligibility cluster (which we skipped), IVF misses it. This is the <strong>recall vs speed tradeoff</strong>. For RAG, ~90% recall is usually fine.'},
+      {t:'IVF vs HNSW — which to pick?',p:'<span class="hb">HNSW</span>: better recall, simpler, high memory. <span class="hp">IVF+PQ</span>: lower memory (huge scale), needs tuning. ChromaDB uses HNSW by default — good for Bajaj Finance with 2000 docs.'},
+    ],
+    math:[
+      {l:'Top result:',e:'"EMI Calculation Formula"',r:'d = 38',cls:'win'},
+      {l:'2nd result:',e:'"Interest rate on EMI?"',r:'d = 72',cls:'neu'},
+      {l:'Docs checked:',e:'12 (vs 18 brute force)',r:'33% saved',cls:'inf'},
+      {l:'Recall:',e:'~90% (missed Loan Elig. cluster)',r:'nprobe=2',cls:'neu'},
+    ],
+    poolExpl:'Final ranking from all probed clusters. This is what the RAG system uses to build the prompt context.',
+    pool:[
+      {id:'"EMI Calculation Formula"',d:'d=38, EMI cluster',fate:'win',pl:'→ returned to LLM as context',c:'#3ecb79'},
+      {id:'"EMI on home loans?"',d:'d=55, EMI cluster',fate:'win',pl:'→ 2nd result',c:'#3ecb79'},
+      {id:'"Interest rate formula"',d:'d=72, Interest cluster',fate:'pool',pl:'→ 3rd result if k≥3',c:'#f5a623'},
+    ],
+    c1:{cls:'co-g',txt:'<strong>Production config for Bajaj Finance:</strong> Use FAISS IVFFlat (nlist=50, nprobe=10) or ChromaDB HNSW (M=16, ef=200). At 2000 docs, either works well. At 100k+ docs, IVF+PQ is much more memory efficient.'},
+    c2:null,
+  },
+];
+
+function ivfNext(){if(ivfCur<IVF_STEPS.length-1){ivfCur++;renderIVF();}}
+function ivfPrev(){if(ivfCur>0){ivfCur--;renderIVF();}}
+function ivfRestart(){ivfCur=0;renderIVF();}
+function setNlist(v,el){nlist=v;document.querySelectorAll('#ivf-panel .cbtn').forEach(b=>{if(['2','3','4'].includes(b.textContent))b.classList.remove('on')});el.classList.add('on');renderIVF();}
+function setNprobe(v,el){nprobe=v;document.querySelectorAll('#ivf-panel .cbtn').forEach(b=>{if(['1','2','3 (all)'].includes(b.textContent))b.classList.remove('on')});el.classList.add('on');renderIVF();}
+
+function renderIVF(){
+  const p=IVF_STEPS[ivfCur];
+  const total=IVF_STEPS.length;
+  document.getElementById('ivf-prog').style.width=((ivfCur+1)/total*100)+'%';
+  document.getElementById('ivf-sc').textContent=`${ivfCur+1} / ${total}`;
+  document.getElementById('ivf-pb').disabled=ivfCur===0;
+  document.getElementById('ivf-nb').disabled=ivfCur===total-1;
+  drawIVFCanvas(p);
+  renderStory('ivf-story',p.story);
+  renderMath('ivf-math',p.math);
+  document.getElementById('ivf-pool-expl').textContent=p.poolExpl;
+  renderPool('ivf-pool',p.pool,99);
+  renderCo('ivf-co1',p.c1);
+  renderCo('ivf-co2',p.c2);
+}
+
+function drawIVFCanvas(p){
+  const cv=document.getElementById('ivf-cv');
+  const W=cv.parentElement.clientWidth||520;
+  cv.width=W;cv.style.width=W+'px';
+  const H=340;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0f1219';ctx.fillRect(0,0,W,H);
+
+  const scaleX=W/520, scaleY=H/340;
+  const clusters=FAQ_CLUSTERS.slice(0,Math.min(nlist,3));
+
+  if(p.showVoronoi){
+    // Draw simple voronoi-like regions using gradient blobs
+    clusters.forEach((cl,ci)=>{
+      const r=parseInt(cl.color.slice(1,3),16);
+      const g=parseInt(cl.color.slice(3,5),16);
+      const b=parseInt(cl.color.slice(5,7),16);
+      ctx.beginPath();
+      ctx.arc(cl.cx*scaleX,cl.cy*scaleY,120,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${r},${g},${b},0.07)`;ctx.fill();
+    });
+    // Boundary lines
+    for(let i=0;i<clusters.length;i++){
+      for(let j=i+1;j<clusters.length;j++){
+        const a=clusters[i],b=clusters[j];
+        const mx2=(a.cx+b.cx)/2*scaleX,my2=(a.cy+b.cy)/2*scaleY;
+        const dx=b.cx-a.cx,dy=b.cy-a.cy,len=Math.sqrt(dx*dx+dy*dy);
+        const px=-dy/len*60,py=dx/len*60;
+        ctx.beginPath();ctx.moveTo(mx2-px*scaleX,my2-py*scaleY);ctx.lineTo(mx2+px*scaleX,my2+py*scaleY);
+        ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // probed highlight
+  p.probeClusters.forEach(ci=>{
+    const cl=clusters[ci];
+    if(!cl)return;
+    const r=parseInt(cl.color.slice(1,3),16);
+    const g=parseInt(cl.color.slice(3,5),16);
+    const b=parseInt(cl.color.slice(5,7),16);
+    ctx.beginPath();ctx.arc(cl.cx*scaleX,cl.cy*scaleY,95,0,Math.PI*2);
+    ctx.strokeStyle=cl.color;ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=`rgba(${r},${g},${b},0.12)`;ctx.fill();
+  });
+
+  if(p.showQuery){
+    const qx=QUERY.x*scaleX,qy=QUERY.y*scaleY;
+    // lines to probed centroids
+    p.probeClusters.forEach(ci=>{
+      const cl=clusters[ci];
+      if(!cl)return;
+      ctx.beginPath();ctx.moveTo(qx,qy);ctx.lineTo(cl.cx*scaleX,cl.cy*scaleY);
+      ctx.strokeStyle='rgba(245,166,35,0.5)';ctx.lineWidth=1.2;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+    });
+  }
+
+  // draw clusters
+  clusters.forEach((cl,ci)=>{
+    if(!p.showClusters)return;
+    const isProbed=p.probeClusters.includes(ci);
+    const alpha=isProbed?1:0.4;
+    cl.pts.forEach(pt=>{
+      ctx.beginPath();ctx.arc(pt.x*scaleX,pt.y*scaleY,4.5,0,Math.PI*2);
+      ctx.fillStyle=cl.color;ctx.globalAlpha=alpha;ctx.fill();ctx.globalAlpha=1;
+    });
+    // centroid star
+    const cx2=cl.cx*scaleX,cy2=cl.cy*scaleY;
+    ctx.fillStyle=cl.color;ctx.globalAlpha=isProbed?1:0.45;
+    ctx.font=`bold ${isProbed?16:13}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('★',cx2,cy2);
+    ctx.font=`600 10px Outfit,sans-serif`;
+    ctx.fillStyle=cl.color;
+    ctx.fillText(cl.name,cx2,cy2+18);
+    ctx.globalAlpha=1;
+  });
+
+  // query
+  if(p.showQuery){
+    const qx=QUERY.x*scaleX,qy=QUERY.y*scaleY;
+    ctx.beginPath();ctx.arc(qx,qy,18,0,Math.PI*2);
+    ctx.strokeStyle='rgba(240,96,96,0.4)';ctx.lineWidth=1;ctx.setLineDash([3,2]);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(qx,qy,12,0,Math.PI*2);
+    ctx.fillStyle='rgba(240,96,96,0.2)';ctx.fill();
+    ctx.strokeStyle='#f06060';ctx.lineWidth=1.8;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='bold 9px Outfit,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Q',qx,qy);
+    ctx.fillStyle='rgba(240,96,96,0.7)';ctx.font='8px JetBrains Mono,monospace';ctx.textBaseline='alphabetic';
+    ctx.fillText('"EMI query"',qx,qy+22);
+  }
+
+  // legend
+  ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='9px JetBrains Mono,monospace';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  ctx.fillText(`nlist=${nlist}  nprobe=${nprobe}`,8,H-8);
+}
+
+// ══════════════════════════════════════════
+//  PQ DATA
+// ══════════════════════════════════════════
+let pqM=1,pqK=4,pqCur=0;
+
+// 8 sample RGB pixels (a tiny "image patch")
+const PIXELS=[
+  {r:220,g:80,b:60},{r:200,g:90,b:70},{r:230,g:75,b:55},{r:210,g:85,b:65},
+  {r:80,g:160,b:220},{r:90,g:170,b:210},{r:75,g:155,b:230},{r:85,g:165,b:225},
+];
+
+// Centroids for codebook k=4
+const CODEBOOK_K4=[
+  {r:215,g:83,b:63,name:'Warm Red',id:'C0'},
+  {r:83,g:163,b:221,name:'Cool Blue',id:'C1'},
+  {r:150,g:120,b:140,name:'Mid Mauve',id:'C2'},
+  {r:50,g:200,b:100,name:'Bright Green',id:'C3'},
+];
+const CODEBOOK_K8=[
+  {r:225,g:78,b:58,name:'Hot Red',id:'C0'},{r:205,g:88,b:68,name:'Rose Red',id:'C1'},
+  {r:78,g:158,b:228,name:'Sky Blue',id:'C2'},{r:88,g:168,b:208,name:'Steel Blue',id:'C3'},
+  {r:160,g:130,b:150,name:'Pink Grey',id:'C4'},{r:140,g:110,b:130,name:'Dusty Rose',id:'C5'},
+  {r:50,g:190,b:90,name:'Emerald',id:'C6'},{r:70,g:210,b:110,name:'Mint',id:'C7'},
+];
+
+function rgbDist(a,b){return Math.sqrt((a.r-b.r)**2+(a.g-b.g)**2+(a.b-b.b)**2);}
+function rgbStr(c){return `rgb(${c.r},${c.g},${c.b})`;}
+function toHex(c){return '#'+[c.r,c.g,c.b].map(v=>v.toString(16).padStart(2,'0')).join('');}
+
+function getCodebook(){return pqK<=4?CODEBOOK_K4:CODEBOOK_K8;}
+
+function getNearestCentroid(pixel){
+  const cb=getCodebook();
+  let best=0,bestD=Infinity;
+  cb.forEach((c,i)=>{const d=rgbDist(pixel,c);if(d<bestD){bestD=d;best=i;}});
+  return {idx:best,centroid:cb[best],dist:bestD};
+}
+
+let selectedPixel=0;
+
+const PQ_STEPS=[
+  {
+    title:'Step 1 — Original vectors: RGB pixels (no compression)',
+    sub:'Each pixel is a 3D vector [R, G, B]. Storing 8 pixels = 8 × 3 bytes = 24 bytes. For millions of image embeddings this blows up fast.',
+    prog:20,
+    render:()=>renderPQStep1(),
+  },
+  {
+    title:'Step 2 — Split into sub-vectors (m segments)',
+    sub:'PQ divides each vector into m equal parts. With RGB (dim=3) and m=1, each sub-vector IS the full RGB triplet. With m=3, each sub-vector is just 1 dimension.',
+    prog:40,
+    render:()=>renderPQStep2(),
+  },
+  {
+    title:'Step 3 — Train codebook: k centroids per segment',
+    sub:'For each sub-vector segment, run k-means to find k centroids. This is our "codebook" — a lookup table of representative vectors.',
+    prog:60,
+    render:()=>renderPQStep3(),
+  },
+  {
+    title:'Step 4 — Encode: replace each sub-vector with centroid ID',
+    sub:'Each pixel\'s sub-vector is replaced by the ID of its nearest centroid. Instead of storing [220,80,60], store just "0". Click any pixel to see its encoding.',
+    prog:80,
+    render:()=>renderPQStep4(),
+  },
+  {
+    title:'Step 5 — Compression ratio & approximate distance',
+    sub:'Original: 3 bytes per pixel (float32 = 12 bytes). Compressed: 1 byte (centroid ID). Distance computed from centroid vectors — approximate but fast.',
+    prog:100,
+    render:()=>renderPQStep5(),
+  },
+];
+
+function pqNext(){if(pqCur<PQ_STEPS.length-1){pqCur++;renderPQ();}}
+function pqPrev(){if(pqCur>0){pqCur--;renderPQ();}}
+function pqRestart(){pqCur=0;renderPQ();}
+function setPQm(v,el){pqM=v;['pq-m1','pq-m2','pq-m3'].forEach(id=>document.getElementById(id).classList.remove('on'));el.classList.add('on');renderPQ();}
+function setPQk(v,el){pqK=v;['pq-k4','pq-k8','pq-k256'].forEach(id=>document.getElementById(id).classList.remove('on'));el.classList.add('on');renderPQ();}
+
+function renderPQ(){
+  const p=PQ_STEPS[pqCur];
+  document.getElementById('pq-prog').style.width=p.prog+'%';
+  document.getElementById('pq-sc').textContent=`${pqCur+1} / ${PQ_STEPS.length}`;
+  document.getElementById('pq-pb').disabled=pqCur===0;
+  document.getElementById('pq-nb').disabled=pqCur===PQ_STEPS.length-1;
+  document.getElementById('pq-content').innerHTML='';
+  p.render();
+}
+
+function renderPQStep1(){
+  const cont=document.getElementById('pq-content');
+  const cb=getCodebook();
+  let h=`<div class="grid2">
+  <div>
+    <div class="card">
+      <div class="ct">8 RGB pixels — raw vectors</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">`;
+  PIXELS.forEach((px,i)=>{
+    h+=`<div style="text-align:center">
+      <div style="width:100%;aspect-ratio:1;background:${rgbStr(px)};border-radius:6px;border:1px solid rgba(255,255,255,0.15);margin-bottom:4px"></div>
+      <div style="font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace">P${i+1}</div>
+    </div>`;
+  });
+  h+=`</div>
+      <div class="ct" style="margin-top:10px">Vector representation</div>`;
+  PIXELS.forEach((px,i)=>{
+    h+=`<div class="pq-subvec">
+      <span style="color:var(--muted)">P${i+1} = </span>
+      <span style="color:var(--red)">[${px.r}</span>,
+      <span style="color:var(--green)">${px.g}</span>,
+      <span style="color:var(--blue)">${px.b}]</span>
+      <span style="float:right;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--al);color:var(--amber)">3 bytes</span>
+    </div>`;
+  });
+  h+=`<div class="co co-r" style="margin-top:8px"><strong>Scale problem:</strong> 1 million image vectors × 128 dims × 4 bytes (float32) = <strong>512 MB</strong> just for vectors. PQ compresses to ~4–16 MB.</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">Why compress at all?</div>
+      <div class="sitem vis"><div class="snum sn-c">1</div><div class="story-body"><div class="st">Storage explodes at scale</div><div class="sp">Bajaj Finance: 2000 FAQs × 1536-dim (text-embedding-3) = <span class="hr">~12 MB</span>. Fine. But at 10M docs: <span class="hr">~60 GB</span>. Doesn\'t fit in RAM.</div></div></div>
+      <div class="sitem vis" style="transition-delay:.1s"><div class="snum sn-d">2</div><div class="story-body"><div class="st">Distance computation is slow</div><div class="sp">Comparing Q to 10M 1536-dim vectors = 10M × 1536 multiplications per query. PQ replaces this with fast table lookups.</div></div></div>
+      <div class="sitem vis" style="transition-delay:.2s"><div class="snum sn-d">3</div><div class="story-body"><div class="st">PQ: split → codebook → encode</div><div class="sp">Split vector into m parts. Learn k centroids per part (codebook). Replace each part with a <strong>1-byte centroid ID</strong>.</div></div></div>
+    </div>
+    <div class="card">
+      <div class="ct">Memory: original vs compressed</div>
+      <div class="metric-row"><div class="metric-label">Original (float32)</div><div class="metric-bar-wrap"><div class="metric-bar" style="background:var(--red);width:100%"></div></div><div class="metric-val" style="color:var(--red)">12 bytes</div></div>
+      <div class="metric-row"><div class="metric-label">PQ m=1, k=4</div><div class="metric-bar-wrap"><div class="metric-bar" style="background:var(--green);width:8%"></div></div><div class="metric-val" style="color:var(--green)">1 byte</div></div>
+      <div class="metric-row"><div class="metric-label">PQ m=2, k=4</div><div class="metric-bar-wrap"><div class="metric-bar" style="background:var(--amber);width:16%"></div></div><div class="metric-val" style="color:var(--amber)">2 bytes</div></div>
+      <div class="co co-p" style="margin-top:6px"><strong>12× to 96× compression</strong> possible. The tradeoff: distances become approximate.</div>
+    </div>
+  </div></div>`;
+  cont.innerHTML=h;
+}
+
+function renderPQStep2(){
+  const cont=document.getElementById('pq-content');
+  let h=`<div class="grid2">
+  <div class="card">
+    <div class="ct">Sub-vector splitting — m=${pqM} segment(s)</div>
+    <div class="co co-b" style="margin-bottom:10px">Each 3D RGB vector [R, G, B] is split into <strong>m=${pqM} equal segment(s)</strong>. Each segment becomes an independent sub-vector.</div>`;
+
+  PIXELS.forEach((px,i)=>{
+    h+=`<div style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;color:var(--text);margin-bottom:4px">P${i+1} = [${px.r}, ${px.g}, ${px.b}]</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">`;
+    if(pqM===1){
+      h+=`<div class="pq-subvec" style="flex:1;border-color:var(--ab);color:var(--amber)">seg0: [<span style="color:var(--red)">${px.r}</span>, <span style="color:var(--green)">${px.g}</span>, <span style="color:var(--blue)">${px.b}</span>]</div>`;
+    } else if(pqM===2){
+      h+=`<div class="pq-subvec" style="flex:1;border-color:var(--bb)">seg0: [<span style="color:var(--red)">${px.r}</span>, <span style="color:var(--green)">${px.g}</span>]</div>
+          <div class="pq-subvec" style="flex:1;border-color:var(--pb)">seg1: [<span style="color:var(--blue)">${px.b}</span>]</div>`;
+    } else {
+      h+=`<div class="pq-subvec" style="border-color:var(--rb)">seg0:[<span style="color:var(--red)">${px.r}</span>]</div>
+          <div class="pq-subvec" style="border-color:var(--gb)">seg1:[<span style="color:var(--green)">${px.g}</span>]</div>
+          <div class="pq-subvec" style="border-color:var(--bb)">seg2:[<span style="color:var(--blue)">${px.b}</span>]</div>`;
+    }
+    h+=`</div></div>`;
+  });
+  h+=`</div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">Why split?</div>
+      <div class="sitem vis"><div class="snum sn-c">1</div><div class="story-body"><div class="st">Each segment gets its OWN codebook</div><div class="sp">Instead of one huge codebook for the full 3D vector, we have <strong>m small codebooks</strong>, one per segment. Much easier to train.</div></div></div>
+      <div class="sitem vis"><div class="snum sn-d">2</div><div class="story-body"><div class="st">m=1 is just standard vector quantization</div><div class="sp">With m=1, we treat the whole RGB as one unit. With m=3, R, G, B each get their own 1D codebook independently.</div></div></div>
+      <div class="sitem vis"><div class="snum sn-d">3</div><div class="story-body"><div class="st">Final code = concatenation of IDs</div><div class="sp">P1 code = [seg0_id, seg1_id, ...]. For m=2: [0, 1] means "seg0 maps to centroid 0, seg1 maps to centroid 1".</div></div></div>
+    </div>
+    <div class="co co-a"><strong>m=${pqM} → ${pqM} sub-vector(s) per pixel.</strong> Each gets ${pqK} centroids in its codebook. Final code: ${pqM} byte(s) per pixel (assuming k≤256).</div>
+  </div></div>`;
+  cont.innerHTML=h;
+}
+
+function renderPQStep3(){
+  const cont=document.getElementById('pq-content');
+  const cb=getCodebook();
+  let h=`<div class="grid2">
+  <div class="card">
+    <div class="ct">Codebook — ${pqK} centroids learned by k-means</div>
+    <div class="co co-p" style="margin-bottom:10px">k-means runs on all ${pqM===1?'full RGB':'sub-'} vectors and finds <strong>${pqK} representative centroids</strong>. These are your "color vocabulary".</div>`;
+
+  cb.forEach((c,i)=>{
+    h+=`<div class="pq-centroid">
+      <div class="cc" style="background:${rgbStr(c)}"></div>
+      <div>
+        <div class="cn"><span class="badge badge-a">C${i}</span> ${c.name}</div>
+        <div class="cd">[R:${c.r}, G:${c.g}, B:${c.b}]</div>
+      </div>
+    </div>`;
+  });
+
+  h+=`</div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">Nearest centroid for each pixel</div>`;
+
+  PIXELS.forEach((px,i)=>{
+    const {idx,centroid,dist}=getNearestCentroid(px);
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="width:18px;height:18px;border-radius:4px;background:${rgbStr(px)};border:1px solid rgba(255,255,255,0.15);flex-shrink:0"></div>
+      <span style="font-size:10px;color:var(--text);min-width:20px">P${i+1}</span>
+      <span style="font-size:10px;color:var(--muted)">→</span>
+      <div style="width:18px;height:18px;border-radius:50%;background:${rgbStr(centroid)};border:1px solid rgba(255,255,255,0.2);flex-shrink:0"></div>
+      <span class="badge badge-a">C${idx}</span>
+      <span style="font-size:9px;color:var(--muted);margin-left:auto;font-family:'JetBrains Mono',monospace">d=${dist.toFixed(1)}</span>
+    </div>`;
+  });
+
+  h+=`</div>
+    <div class="card">
+      <div class="ct">Codebook training cost</div>
+      <div class="mrow vis"><span class="ml">Training:</span><span class="me">k-means on all sub-vectors</span><span class="mr neu">one-time</span></div>
+      <div class="mrow vis"><span class="ml">k=${pqK} cents:</span><span class="me">${Math.ceil(Math.log2(pqK))} bits per centroid ID</span><span class="mr inf">~${Math.ceil(Math.log2(pqK)/8)} byte${Math.ceil(Math.log2(pqK)/8)>1?'s':''}</span></div>
+      <div class="mrow vis"><span class="ml">Codebook:</span><span class="me">${pqK} × ${pqM===1?3:Math.ceil(3/pqM)} floats stored</span><span class="mr neu">tiny</span></div>
+    </div>
+  </div></div>`;
+  cont.innerHTML=h;
+}
+
+function renderPQStep4(){
+  const cont=document.getElementById('pq-content');
+  const cb=getCodebook();
+  const sel=selectedPixel;
+  const selPx=PIXELS[sel];
+  const {idx:selIdx,centroid:selCent,dist:selDist}=getNearestCentroid(selPx);
+
+  let h=`<div class="grid2">
+  <div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="ct">Click a pixel to see its encoding</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">`;
+
+  PIXELS.forEach((px,i)=>{
+    const {idx}=getNearestCentroid(px);
+    const isSel=i===sel;
+    h+=`<div onclick="selectedPixel=${i};renderPQ();" style="cursor:pointer;text-align:center">
+      <div style="width:100%;aspect-ratio:1;background:${rgbStr(px)};border-radius:6px;border:${isSel?'2px solid var(--amber)':'1px solid rgba(255,255,255,0.12)'};margin-bottom:4px;transition:transform .15s;${isSel?'transform:scale(1.08);box-shadow:0 0 0 3px var(--al)':''};"></div>
+      <div style="font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace">P${i+1}</div>
+      <div class="badge badge-a" style="font-size:8px">C${idx}</div>
+    </div>`;
+  });
+
+  h+=`</div>
+    </div>
+    <div class="card">
+      <div class="ct">Encoding: P${sel+1} → C${selIdx}</div>
+      <div style="display:flex;gap:10px;align-items:center;margin:10px 0">
+        <div style="text-align:center">
+          <div style="width:50px;height:50px;background:${rgbStr(selPx)};border-radius:8px;border:1px solid rgba(255,255,255,0.2);margin:0 auto 4px"></div>
+          <div style="font-size:9px;color:var(--muted)">Original P${sel+1}</div>
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text)">[${selPx.r},${selPx.g},${selPx.b}]</div>
+        </div>
+        <div style="font-size:20px;color:var(--amber)">→</div>
+        <div style="text-align:center">
+          <div style="width:50px;height:50px;background:${rgbStr(selCent)};border-radius:8px;border:2px solid var(--amber);margin:0 auto 4px"></div>
+          <div style="font-size:9px;color:var(--muted)">Centroid C${selIdx}</div>
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--amber)">[${selCent.r},${selCent.g},${selCent.b}]</div>
+        </div>
+      </div>
+      <div class="mrow vis"><span class="ml">Original:</span><span class="me">[${selPx.r}, ${selPx.g}, ${selPx.b}]</span><span class="mr lose">3 bytes</span></div>
+      <div class="mrow vis"><span class="ml">Encoded:</span><span class="me">centroid ID = ${selIdx}</span><span class="mr win">1 byte</span></div>
+      <div class="mrow vis"><span class="ml">Error:</span><span class="me">quantization error d=${selDist.toFixed(1)}</span><span class="mr neu">approx</span></div>
+      <div class="mrow vis"><span class="ml">Reconstruct:</span><span class="me">look up C${selIdx} → [${selCent.r},${selCent.g},${selCent.b}]</span><span class="mr inf">≈ original</span></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">Full encoding table</div>`;
+
+  PIXELS.forEach((px,i)=>{
+    const {idx,centroid,dist}=getNearestCentroid(px);
+    h+=`<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:10px;${i===sel?'background:var(--al);margin:0 -4px;padding:4px;border-radius:5px;':''}">
+      <div style="width:14px;height:14px;border-radius:3px;background:${rgbStr(px)};flex-shrink:0"></div>
+      <span style="color:var(--muted)">P${i+1}:[${px.r},${px.g},${px.b}]</span>
+      <span style="color:var(--dim)">→</span>
+      <div style="width:14px;height:14px;border-radius:50%;background:${rgbStr(centroid)};flex-shrink:0"></div>
+      <span class="badge badge-a">C${idx}</span>
+      <span style="color:var(--dim);font-size:9px;margin-left:auto">err:${dist.toFixed(0)}</span>
+    </div>`;
+  });
+
+  h+=`</div>
+    <div class="co co-g"><strong>Compressed:</strong> 8 pixels × 1 byte = <strong>8 bytes</strong>. Original: 8 × 3 = 24 bytes. Ratio: <strong>3×</strong> for m=1, k=${pqK}. Real embeddings: 12 bytes → 1 byte = <strong>12× compression</strong>.</div>
+  </div></div>`;
+  cont.innerHTML=h;
+}
+
+function renderPQStep5(){
+  const cont=document.getElementById('pq-content');
+  const cb=getCodebook();
+  const bitsPerCode=Math.ceil(Math.log2(pqK));
+  const bytesPerVec=Math.ceil(pqM*bitsPerCode/8)||1;
+  const origBytes=3*4; // float32
+  const ratio=Math.round(origBytes/bytesPerVec);
+
+  let h=`<div class="grid2">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">Compression summary — m=${pqM}, k=${pqK}</div>
+      <div class="metric-row"><div class="metric-label">Original size</div><div class="metric-bar-wrap"><div class="metric-bar" style="background:var(--red);width:100%"></div></div><div class="metric-val" style="color:var(--red)">${origBytes}B</div></div>
+      <div class="metric-row"><div class="metric-label">Compressed</div><div class="metric-bar-wrap"><div class="metric-bar" style="background:var(--green);width:${Math.max(5,100/ratio)}%"></div></div><div class="metric-val" style="color:var(--green)">${bytesPerVec}B</div></div>
+      <div class="metric-row"><div class="metric-label">Ratio</div><div class="metric-bar-wrap"><div class="metric-bar" style="background:var(--purple);width:100%"></div></div><div class="metric-val" style="color:var(--purple)">${ratio}×</div></div>
+      <div class="co co-g" style="margin-top:8px">For 1M vectors at 128-dim: <strong>${Math.round(1000000*128*4/1024/1024)} MB</strong> → <strong>${Math.round(1000000*pqM*bitsPerCode/8/1024/1024)||1} MB</strong> with PQ m=${pqM}, k=${pqK}.</div>
+    </div>
+    <div class="card">
+      <div class="ct">Approximate distance with PQ</div>
+      <div class="sitem vis"><div class="snum sn-c">1</div><div class="story-body"><div class="st">ADC — Asymmetric Distance Computation</div><div class="sp">Query Q is NOT compressed. Only the database vectors are compressed. Distance computed between Q (exact) and centroid (approximate).</div></div></div>
+      <div class="sitem vis"><div class="snum sn-d">2</div><div class="story-body"><div class="st">Precompute distance tables</div><div class="sp">For each segment, precompute d(Q_seg, centroid_i) for all k centroids. Then look up distances instead of computing them.</div></div></div>
+      <div class="sitem vis"><div class="snum sn-d">3</div><div class="story-body"><div class="st">Total dist = sum of segment distances</div><div class="sp">d_approx(Q, P) = Σ d(Q_seg_j, centroid[code_j]). Lookup table, no multiply. <span class="hg">100× faster</span> than exact distance.</div></div></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="ct">Interactive: pixel color mixer → see quantization error</div>
+      <div id="pq-mixer">
+        <div class="slider-row"><label style="color:var(--red)">R</label><input type="range" min="0" max="255" value="180" id="mix-r" oninput="updateMixer()"><span class="val" id="mix-r-v">180</span></div>
+        <div class="slider-row"><label style="color:var(--green)">G</label><input type="range" min="0" max="255" value="100" id="mix-g" oninput="updateMixer()"><span class="val" id="mix-g-v">100</span></div>
+        <div class="slider-row"><label style="color:var(--blue)">B</label><input type="range" min="0" max="255" value="80" id="mix-b" oninput="updateMixer()"><span class="val" id="mix-b-v">80</span></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1;text-align:center">
+            <div id="mix-orig" class="color-swatch"></div>
+            <div style="font-size:9px;color:var(--muted)">Your color</div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div id="mix-approx" class="color-swatch"></div>
+            <div style="font-size:9px;color:var(--muted)">PQ approximation</div>
+          </div>
+        </div>
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:6px;" id="mix-info"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">When to use PQ in your pipeline</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.8">
+        <div>✓ <strong style="color:var(--text)">FAISS IVF+PQ</strong> — 100M+ vectors, GPU search</div>
+        <div>✓ <strong style="color:var(--text)">ScaNN PQ</strong> — Google-scale retrieval</div>
+        <div>✗ <strong style="color:var(--muted)">ChromaDB</strong> — uses HNSW, no PQ</div>
+        <div style="margin-top:6px;padding:6px 8px;background:var(--s2);border-radius:6px;border:1px solid var(--border)">
+          <strong style="color:var(--text)">Bajaj Finance 2000 docs:</strong> Don\'t need PQ. Flat or HNSW is fine. PQ helps when you scale to 100k+ FAQs or add image embeddings.
+        </div>
+      </div>
+    </div>
+  </div></div>`;
+  cont.innerHTML=h;
+  updateMixer();
+}
+
+function updateMixer(){
+  const r=parseInt(document.getElementById('mix-r').value);
+  const g=parseInt(document.getElementById('mix-g').value);
+  const b=parseInt(document.getElementById('mix-b').value);
+  document.getElementById('mix-r-v').textContent=r;
+  document.getElementById('mix-g-v').textContent=g;
+  document.getElementById('mix-b-v').textContent=b;
+  const orig=document.getElementById('mix-orig');
+  const approx=document.getElementById('mix-approx');
+  const info=document.getElementById('mix-info');
+  if(!orig)return;
+  orig.style.background=`rgb(${r},${g},${b})`;
+  const px={r,g,b};
+  const {idx,centroid,dist}=getNearestCentroid(px);
+  approx.style.background=rgbStr(centroid);
+  info.innerHTML=`<span style="color:var(--muted)">Nearest centroid:</span> <span class="badge badge-a">C${idx}</span> ${centroid.name}<br>
+  <span style="color:var(--muted)">Original:</span> [${r}, ${g}, ${b}] → Approx: [${centroid.r}, ${centroid.g}, ${centroid.b}]<br>
+  <span style="color:var(--muted)">Quantization error:</span> <span style="color:${dist<30?'var(--green)':dist<60?'var(--amber)':'var(--red)'}">d=${dist.toFixed(1)}</span>
+  (${dist<30?'excellent':dist<60?'acceptable':'high — increase k'})`;
+}
+
+// ══════════════════════════════════════════
+//  TUNING
+// ══════════════════════════════════════════
+function tune(){
+  const nlist=parseInt(document.getElementById('ts-nlist').value);
+  const nprobe=parseInt(document.getElementById('ts-nprobe').value);
+  const M=parseInt(document.getElementById('ts-M').value);
+  const efc=parseInt(document.getElementById('ts-efc').value);
+  const efs=parseInt(document.getElementById('ts-efs').value);
+  const pqm=parseInt(document.getElementById('ts-pqm').value);
+  const pqk=parseInt(document.getElementById('ts-pqk').value);
+  const N=parseInt(document.getElementById('ts-n').value);
+  const dim=128;
+
+  document.getElementById('tv-nlist').textContent=nlist;
+  document.getElementById('tv-nprobe').textContent=nprobe;
+  document.getElementById('tv-M').textContent=M;
+  document.getElementById('tv-efc').textContent=efc;
+  document.getElementById('tv-efs').textContent=efs;
+  document.getElementById('tv-pqm').textContent=pqm;
+  document.getElementById('tv-pqk').textContent=pqk;
+  document.getElementById('tv-n').textContent=N.toLocaleString();
+
+  // IVF rule
+  const nprobeRatio=nprobe/nlist;
+  const ivfRule=document.getElementById('ivf-rule');
+  ivfRule.className='co '+(nprobeRatio>0.5?'co-r':nprobeRatio>0.2?'co-a':'co-g');
+  ivfRule.innerHTML=nprobeRatio>0.5?`<strong>Warning:</strong> nprobe/nlist=${(nprobeRatio*100).toFixed(0)}% — searching most clusters. Close to brute force. Reduce nlist or nprobe.`
+    :nprobeRatio>0.2?`<strong>OK:</strong> nprobe/nlist=${(nprobeRatio*100).toFixed(0)}%. Acceptable range. Watch recall.`
+    :`<strong>Good:</strong> nprobe/nlist=${(nprobeRatio*100).toFixed(0)}%. Efficient. Ensure recall≥90%.`;
+
+  // PQ compression
+  const origBytes=dim*4;
+  const compBytes=Math.ceil(pqm*pqk/8)||1;
+  document.getElementById('tune-orig-bytes').textContent=`${origBytes} bytes`;
+  document.getElementById('tune-comp-bytes').textContent=`${compBytes} bytes`;
+
+  // N note
+  const nNote=N<10000?'Small dataset — flat search may be faster than IVF at this scale.':N<100000?'Medium scale — IVF beneficial. HNSW also good.':'Large scale — IVF+PQ recommended for memory efficiency.';
+  document.getElementById('tune-n-note').textContent=nNote;
+
+  // Recall estimate
+  const ivfRecall=Math.min(99,30+50*(nprobe/nlist)**0.4*100**0.4);
+  const hnswRecall=Math.min(99,40+50*(efs/200)**0.3*(M/64)**0.2*100**0.2);
+  const pqRecall=Math.min(99,100-20*(1-pqm/32)**2-10*(1-pqk/12)**2);
+  const recall=Math.min(ivfRecall,hnswRecall,pqRecall);
+
+  // Speed estimate (higher = faster)
+  const ivfSpeed=100*(1-nprobe/nlist);
+  const hnswSpeed=Math.max(5,100-efs*0.4-M*0.8);
+  const speed=Math.min(99,(ivfSpeed*0.5+hnswSpeed*0.5));
+
+  // Memory
+  const hnswMem=Math.min(99,20+M*0.8+efc*0.05);
+  const ivfMem=Math.max(5,100-compBytes/origBytes*80);
+  const mem=Math.min(99,(hnswMem*0.4+ivfMem*0.6));
+
+  // Build time
+  const build=Math.min(99,10+efc*0.2+M*0.5+nlist*0.05);
+
+  setMetric('recall',recall,'%');
+  setMetric('speed',speed,'%');
+  setMetric('mem',mem,'%');
+  setMetric('build',build,'%');
+
+  // Verdict
+  const vEl=document.getElementById('tune-verdict');
+  const issues=[];
+  if(recall<70)issues.push(`<span style="color:var(--red)">Low recall (${recall.toFixed(0)}%) — increase nprobe, M, or ef_search.</span>`);
+  if(speed<30)issues.push(`<span style="color:var(--amber)">Slow queries — reduce nprobe or ef_search.</span>`);
+  if(mem>80)issues.push(`<span style="color:var(--purple)">High memory — reduce M or use PQ compression.</span>`);
+  if(nprobe>nlist)issues.push(`<span style="color:var(--red)">nprobe > nlist — impossible config.</span>`);
+  if(efc<M)issues.push(`<span style="color:var(--red)">ef_construction must be ≥ M.</span>`);
+  if(issues.length===0){
+    vEl.innerHTML=`<span style="color:var(--green)">✓ Good config!</span> Recall ~${recall.toFixed(0)}%, speed score ${speed.toFixed(0)}/100. ${N>100000?'Consider IVF+PQ for better memory efficiency at this scale.':'For '+N.toLocaleString()+' docs, this config is well-balanced.'}`;
+  } else {
+    vEl.innerHTML=issues.join('<br>');
+  }
+}
+
+function setMetric(id,val,unit){
+  document.getElementById('mb-'+id).style.width=val+'%';
+  document.getElementById('mv-'+id).textContent=val.toFixed(0)+unit;
+}
+
+// ══════════════════════════════════════════
+//  SHARED HELPERS
+// ══════════════════════════════════════════
+function renderStory(id,items){
+  const el=document.getElementById(id);
+  el.innerHTML='';
+  items.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='sitem';
+    const cls=i<items.length-1?'sn-d':'sn-c';
+    d.innerHTML=`<div class="snum ${cls}">${i+1}</div><div class="story-body"><div class="st">${s.t}</div><div class="sp">${s.p}</div></div>`;
+    el.appendChild(d);
+    setTimeout(()=>d.classList.add('vis'),i*70);
+  });
+}
+
+function renderMath(id,rows){
+  const el=document.getElementById(id);
+  el.innerHTML='';
+  rows.forEach((m,i)=>{
+    const d=document.createElement('div');
+    d.className='mrow';
+    d.innerHTML=`<span class="ml">${m.l}</span><span class="me">${m.e}</span><span class="mr ${m.cls}">${m.r}</span>`;
+    el.appendChild(d);
+    setTimeout(()=>d.classList.add('vis'),i*60+80);
+  });
+}
+
+function renderPool(id,pool,efVal){
+  const el=document.getElementById(id);
+  el.innerHTML='';
+  pool.forEach((item,i)=>{
+    const inEf=i<efVal;
+    const fate=item.fate==='win'?'win':(item.fate==='drop'||!inEf)?'drop':'pool';
+    const fateLbl=fate==='win'?'✓ probed':fate==='drop'?'✗ skipped':'in pool';
+    const itemCls=fate==='win'?'pi-s':fate==='drop'?'pi-d':'pi-p';
+    const fateCls=fate==='win'?'pf-w':fate==='drop'?'pf-d':'pf-p';
+    const d=document.createElement('div');
+    d.className=`pitem ${itemCls}`;
+    d.innerHTML=`<span class="pi-rank">#${i+1}</span>
+      <div class="pi-dot" style="background:${item.c||'var(--s2)'};border:1px solid rgba(255,255,255,0.2)">&nbsp;</div>
+      <div><div class="pi-nm">${item.id}</div><div class="pi-dt">${item.d} · ${item.pl}</div></div>
+      <span class="pi-fate ${fateCls}">${fateLbl}</span>`;
+    el.appendChild(d);
+    setTimeout(()=>d.classList.add('vis'),i*60+50);
+  });
+}
+
+function renderCo(id,co){
+  const el=document.getElementById(id);
+  if(!el)return;
+  if(co){el.className=`co ${co.cls}`;el.innerHTML=co.txt;el.style.display='block';}
+  else el.style.display='none';
+}
+
+// ══════════════════════════════════════════
+//  TAB SWITCHING
+// ══════════════════════════════════════════
+function goTab(tab,el){
+  ['ivf-panel','pq-panel','tune-panel'].forEach(id=>document.getElementById(id).style.display='none');
+  document.querySelectorAll('.tnav').forEach(t=>t.classList.remove('on'));
+  document.getElementById(tab+'-panel').style.display='block';
+  el.classList.add('on');
+  if(tab==='ivf'){renderIVF();}
+  else if(tab==='pq'){renderPQ();}
+  else if(tab==='tune'){tune();}
+}
+
+// ── INIT ──
+renderIVF();
+window.addEventListener('resize',()=>{
+  const active=document.getElementById('ivf-panel').style.display!=='none'?'ivf':document.getElementById('pq-panel').style.display!=='none'?'pq':'tune';
+  if(active==='ivf')renderIVF();
+  else if(active==='pq')renderPQ();
+});
+</script>
+</body>
+</html>

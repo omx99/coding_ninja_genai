@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Session 4 — Vector Databases Part 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --paper:   #fafaf7;
+  --ink:     #1a1a18;
+  --muted:   #6b6b66;
+  --warm:    #f4f1eb;
+  --border:  #e2ddd6;
+  --accent:  #e84855;
+  --accent2: #f9a03f;
+  --accent3: #2a9d8f;
+  --accent4: #5b4fcf;
+  --accent5: #264653;
+  --nav-h: 52px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Lora',Georgia,serif;background:var(--paper);color:var(--ink);line-height:1.75;font-size:16px;}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--nav-h);background:var(--ink);display:flex;align-items:center;gap:2px;padding:0 20px;overflow-x:auto;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-brand{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--accent3);letter-spacing:2px;text-transform:uppercase;white-space:nowrap;margin-right:12px;flex-shrink:0;}
+.nav-ch{font-family:'JetBrains Mono',monospace;font-size:11px;color:#aaa;padding:4px 10px;border-radius:4px;cursor:pointer;background:none;border:none;white-space:nowrap;transition:all .2s;}
+.nav-ch:hover{background:var(--warm);color:var(--ink);}
+.nav-ch.active{background:var(--ink);color:white;outline:1px solid #555;}
+.nav-right{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;}
+
+/* MAIN */
+.main{padding-top:55px;}
+.chapter{display:none;max-width:820px;margin:0 auto;padding:60px 32px 100px;}
+.chapter.active{display:block;}
+
+/* CHAPTER HERO */
+.ch-hero{margin-bottom:56px;padding-bottom:40px;border-bottom:2px solid var(--ink);}
+.ch-number{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;}
+.ch-title{font-family:'Bricolage Grotesque',sans-serif;font-size:44px;font-weight:800;line-height:1.05;margin-bottom:20px;}
+.ch-title .a1{color:var(--accent);}
+.ch-title .a2{color:var(--accent2);}
+.ch-title .a3{color:var(--accent3);}
+.ch-title .a4{color:var(--accent4);}
+.ch-subtitle{font-size:17px;color:var(--muted);max-width:580px;line-height:1.7;font-style:italic;}
+.ch-objectives{margin-top:28px;padding:20px 24px;background:var(--warm);border-radius:8px;border-left:3px solid var(--accent3);}
+.ch-objectives .obj-title{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.ch-objectives ul{padding-left:18px;font-size:14px;color:var(--ink);line-height:1.8;font-family:'Bricolage Grotesque',sans-serif;}
+
+/* RECALL BOX */
+.recall-box{background:#fffbe6;border:2px solid #f5d67a;border-radius:12px;padding:24px 28px;margin:0 0 40px;position:relative;}
+.recall-box::before{content:'← Session 3 Recap';position:absolute;top:-14px;left:16px;background:var(--paper);padding:0 8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#92660a;letter-spacing:2px;text-transform:uppercase;font-weight:700;}
+.recall-box p{margin:0;font-size:14.5px;color:var(--ink);}
+
+/* HEADINGS */
+h2{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;margin:48px 0 20px;line-height:1.2;}
+h3{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;margin:36px 0 14px;}
+h4{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:700;margin:28px 0 10px;}
+p{margin-bottom:16px;font-size:15.5px;}
+
+/* STORY / CONCEPT BOXES */
+.story-box{background:var(--warm);border-radius:12px;padding:24px 28px;margin:28px 0;border-left:4px solid var(--accent2);}
+.story-box .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent2);margin-bottom:10px;font-weight:700;}
+.concept-box{background:#f0f7ff;border-radius:12px;padding:24px 28px;margin:28px 0;border-left:4px solid var(--accent4);}
+.concept-box .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent4);margin-bottom:10px;font-weight:700;}
+.win-box{background:#f0faf5;border-radius:12px;padding:24px 28px;margin:28px 0;border-left:4px solid var(--accent3);}
+.win-box .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent3);margin-bottom:10px;font-weight:700;}
+.warn-box{background:#fff5f5;border-radius:12px;padding:24px 28px;margin:28px 0;border-left:4px solid var(--accent);}
+.warn-box .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:10px;font-weight:700;}
+.instructor-box{background:#f8f4ff;border-radius:12px;padding:20px 24px;margin:28px 0;border:2px dashed var(--accent4);opacity:.85;}
+.instructor-box .label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent4);margin-bottom:8px;font-weight:700;}
+
+/* CODE */
+pre{background:#1a1a18;color:#e8e4d9;border-radius:10px;padding:24px;overflow-x:auto;margin:20px 0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.65;position:relative;}
+pre .copy-btn{position:absolute;top:10px;right:12px;background:#333;color:#aaa;border:none;border-radius:4px;padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:1px;}
+pre .copy-btn:hover{background:#555;color:#fff;}
+code{font-family:'JetBrains Mono',monospace;font-size:13px;background:#f0ece4;padding:2px 6px;border-radius:4px;color:var(--accent5);}
+pre code{background:none;padding:0;color:inherit;}
+.kw{color:#e884a0;}
+.fn{color:#79d5c8;}
+.st{color:#a8d9a0;}
+.cm{color:#666;font-style:italic;}
+.nb{color:#f9a03f;}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;margin:24px 0;font-size:14px;}
+th{background:var(--ink);color:white;padding:12px 16px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;}
+td{padding:11px 16px;border-bottom:1px solid var(--border);font-family:'Lora',serif;}
+tr:nth-child(even) td{background:var(--warm);}
+tr:hover td{background:#ede9e0;}
+
+/* INTERACTIVE ELEMENTS */
+.interactive-section{background:var(--warm);border-radius:16px;padding:32px;margin:40px 0;border:1px solid var(--border);}
+.interactive-section h3{margin-top:0;}
+.quiz-q{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:700;margin-bottom:16px;}
+.quiz-opts{display:flex;flex-direction:column;gap:10px;}
+.quiz-opt{padding:12px 18px;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-family:'Lora',serif;font-size:14.5px;transition:all .2s;background:white;}
+.quiz-opt:hover{border-color:var(--accent3);background:#f0faf5;}
+.quiz-opt.correct{border-color:var(--accent3);background:#f0faf5;color:var(--accent3);}
+.quiz-opt.wrong{border-color:var(--accent);background:#fff5f5;color:var(--accent);}
+.quiz-feedback{margin-top:14px;font-size:14px;padding:12px 16px;border-radius:8px;display:none;}
+.quiz-feedback.show{display:block;}
+.quiz-feedback.correct{background:#f0faf5;color:#1a6648;border:1px solid var(--accent3);}
+.quiz-feedback.wrong{background:#fff5f5;color:#8b2020;border:1px solid var(--accent);}
+
+/* FLOW DIAGRAM */
+.flow{display:flex;align-items:center;gap:0;margin:28px 0;flex-wrap:wrap;}
+.flow-box{background:white;border:2px solid var(--border);border-radius:10px;padding:14px 20px;text-align:center;font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:700;min-width:110px;}
+.flow-box.dense{border-color:var(--accent4);background:#f0f0ff;}
+.flow-box.sparse{border-color:var(--accent2);background:#fff8f0;}
+.flow-box.hybrid{border-color:var(--accent3);background:#f0faf5;}
+.flow-box.retrieval{border-color:var(--accent);background:#fff5f5;}
+.flow-box.rerank{border-color:var(--accent3);background:#f0faf5;}
+.flow-box.llm{border-color:var(--accent4);background:#f5f0ff;}
+.flow-arrow{font-size:22px;color:var(--muted);padding:0 8px;flex-shrink:0;}
+.flow-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;font-weight:400;}
+
+/* METRIC BARS */
+.metric-bar-wrap{margin:8px 0;}
+.metric-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:4px;}
+.metric-bar-bg{background:var(--border);border-radius:4px;height:10px;overflow:hidden;}
+.metric-bar-fill{height:100%;border-radius:4px;transition:width 1s ease;}
+
+/* COMPARISON GRID */
+.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0;}
+.cmp-card{background:white;border-radius:12px;padding:20px;border:2px solid var(--border);}
+.cmp-card h4{margin:0 0 12px;font-family:'Bricolage Grotesque',sans-serif;}
+.cmp-card ul{padding-left:16px;font-size:14px;line-height:1.8;}
+.cmp-card.dense{border-color:var(--accent4);}
+.cmp-card.sparse{border-color:var(--accent2);}
+.cmp-card.hybrid{border-color:var(--accent3);}
+.cmp-card.faiss{border-color:var(--muted);}
+.cmp-card.pinecone{border-color:var(--accent3);}
+
+/* ALPHA SLIDER */
+.alpha-demo{background:white;border-radius:12px;padding:24px;border:2px solid var(--border);margin:24px 0;}
+.slider-wrap{display:flex;align-items:center;gap:16px;margin:16px 0;}
+.alpha-slider{flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:linear-gradient(to right,var(--accent4),var(--accent2));outline:none;}
+.alpha-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--ink);cursor:pointer;}
+.alpha-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;min-width:36px;}
+.alpha-result{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-top:8px;}
+
+/* LATENCY TABLE */
+.lat-table{background:var(--ink);border-radius:10px;padding:20px;margin:20px 0;}
+.lat-table table{margin:0;}
+.lat-table th{background:transparent;color:var(--accent3);}
+.lat-table td{color:#e8e4d9;border-bottom:1px solid #333;}
+.lat-table tr:nth-child(even) td{background:#222;}
+
+/* PROGRESS */
+.progress-dots{display:flex;gap:6px;justify-content:center;margin:40px 0;}
+.pdot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .2s;}
+.pdot.active{background:var(--ink);transform:scale(1.3);}
+
+/* SECTION BADGE */
+.section-badge{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:4px;margin-bottom:16px;}
+.badge-dense{background:#eeeeff;color:var(--accent4);}
+.badge-sparse{background:#fff5e6;color:#c07020;}
+.badge-hybrid{background:#eefaf5;color:#1a7a5e;}
+.badge-quant{background:#fff0f5;color:#b02040;}
+.badge-eval{background:#f0f5ff;color:#2050b0;}
+.badge-rerank{background:#f5f0ff;color:#6030b0;}
+.badge-latency{background:#f0faf0;color:#206020;}
+
+/* ANIMATIONS */
+@keyframes fadeIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.chapter.active .ch-hero{animation:fadeIn .5s ease both;}
+.chapter.active .recall-box{animation:fadeIn .5s .1s ease both;}
+.chapter.active h2:first-of-type{animation:fadeIn .5s .15s ease both;}
+
+/* SUMMARY CARD */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:28px 0;}
+.summary-card{background:white;border-radius:12px;padding:18px 20px;border:2px solid var(--border);}
+.summary-card .icon{font-size:24px;margin-bottom:8px;}
+.summary-card h4{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;margin:0 0 6px;}
+.summary-card p{font-size:13px;color:var(--muted);margin:0;line-height:1.6;}
+
+/* MATH */
+.math-block{background:#1a1a18;color:#e8e4d9;border-radius:10px;padding:20px 24px;margin:20px 0;font-family:'JetBrains Mono',monospace;font-size:14px;text-align:center;letter-spacing:.5px;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <span class="nav-brand">S4 · VectorDB-2</span>
+  <button class="nav-ch active" onclick="go(0)">0 · Intro</button>
+  <button class="nav-ch" onclick="go(1)">1 · Index Types</button>
+  <button class="nav-ch" onclick="go(2)">2 · Quantization</button>
+  <button class="nav-ch" onclick="go(3)">3 · Eval Metrics</button>
+  <button class="nav-ch" onclick="go(4)">4 · QPS & Latency</button>
+  <button class="nav-ch" onclick="go(5)">5 · Bi vs Cross Encoder</button>
+  <button class="nav-ch" onclick="go(6)">6 · Reranking</button>
+  <button class="nav-ch" onclick="go(7)">7 · Latency Opt</button>
+  <span class="nav-right">BajajBot v0.4 🚀</span>
+</nav>
+
+<main class="main">
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 0 — INTRO -->
+<div class="chapter active" id="ch0">
+  <div class="ch-hero">
+    <div class="ch-number">Session 04 · Vector Databases — Part 2</div>
+    <h1 class="ch-title">Beyond Basic<br><span class="a3">Vector Search</span></h1>
+    <p class="ch-subtitle">Last session you built FAISS indexes and stored embeddings. Now we go deeper — sparse vs dense, quantization, evaluation metrics, reranking, and latency optimization. This is where production-grade RAG is built.</p>
+    <div class="ch-objectives">
+      <div class="obj-title">🎯 What you'll master today</div>
+      <ul>
+        <li>Dense vs Sparse vs Hybrid indexes — and when to use each</li>
+        <li>Vector Quantization — compress 300GB into 10GB without losing accuracy</li>
+        <li>Precision@K, Recall@K, MRR, NDCG — measure if retrieval is actually working</li>
+        <li>QPS, p50/p95/p99 latency — prove your system is production-ready</li>
+        <li>Reranking — make the top result actually the best result</li>
+        <li>Caching & Batching — serve 10x more queries with the same hardware</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="recall-box">
+    <p><strong>Session 3 recap:</strong> You built FAISS HNSW and IVF indexes over BajajBot's FAQ corpus. You encoded chunks using <code>all-MiniLM-L6-v2</code>, stored them as float32 vectors, and searched with cosine similarity. Everything worked. But your current index only handles <em>semantic</em> queries — "what is my EMI?" → finds related meaning. Today you'll add keyword-level precision, compression for scale, and quality measurement.</p>
+  </div>
+
+  <div class="story-box">
+    <div class="label">🎬 The Story So Far</div>
+    <p>BajajBot can now retrieve relevant FAQ chunks using dense vector search. A customer asks <em>"What documents do I need for a personal loan?"</em> — BajajBot finds semantically similar chunks. But Priya from the product team just filed a bug: <strong>"Whenever a customer types an exact product code like 'BFL-PL-2024', the bot returns completely wrong chunks."</strong></p>
+    <p>That's because dense vectors don't understand exact codes — they work on meaning, not characters. You need <strong>sparse indexes</strong> for that. And that's just the beginning of today's journey.</p>
+  </div>
+
+  <div class="progress-dots" id="progress-dots">
+    <div class="pdot active" onclick="go(0)"></div>
+    <div class="pdot" onclick="go(1)"></div>
+    <div class="pdot" onclick="go(2)"></div>
+    <div class="pdot" onclick="go(3)"></div>
+    <div class="pdot" onclick="go(4)"></div>
+    <div class="pdot" onclick="go(5)"></div>
+    <div class="pdot" onclick="go(6)"></div>
+    <div class="pdot" onclick="go(7)"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 1 — INDEX TYPES -->
+<div class="chapter" id="ch1">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 01</div>
+    <h1 class="ch-title"><span class="a4">Dense</span> · <span class="a2">Sparse</span> · <span class="a3">Hybrid</span><br>Index Types</h1>
+    <p class="ch-subtitle">Three fundamentally different ways to store and search your vectors. Each solves a different problem.</p>
+  </div>
+
+  <div class="recall-box">
+    <p>You've been using <strong>dense indexes</strong> — HNSW, IVF — where every document becomes a 384-dim float vector via <code>all-MiniLM-L6-v2</code>, and retrieval is cosine similarity. This is great for <em>semantic</em> search. Today we add sparse (keyword-level) and hybrid (both).</p>
+  </div>
+
+  <!-- DENSE -->
+  <span class="section-badge badge-dense">Dense Index</span>
+  <h2>1.1 Dense Indexes — Capturing Meaning</h2>
+  <p>Dense vectors store <strong>every dimension as a meaningful float</strong>. A 384-dim vector from MiniLM encodes the full semantic context of a sentence. Two sentences with completely different words but the same meaning will have similar vectors.</p>
+
+  <div class="win-box">
+    <div class="label">✅ Dense Wins When</div>
+    <p>Customer asks: <em>"Can I defer my EMI payment?"</em> — Dense finds documents about "loan restructuring", "moratorium", "payment holiday" — even though none of those words appear in the query. That's semantic understanding.</p>
+  </div>
+
+  <table>
+    <tr><th>Model</th><th>Dimensions</th><th>Best For</th><th>Cost</th></tr>
+    <tr><td><code>all-MiniLM-L6-v2</code></td><td>384</td><td>General semantic search</td><td>Free (local)</td></tr>
+    <tr><td><code>text-embedding-3-small</code></td><td>1536</td><td>High quality, production</td><td>OpenAI API</td></tr>
+    <tr><td><code>text-embedding-3-large</code></td><td>3072</td><td>Best quality</td><td>OpenAI API (expensive)</td></tr>
+    <tr><td><code>embed-english-v3.0</code> (Cohere)</td><td>1024</td><td>Enterprise RAG</td><td>Cohere API</td></tr>
+    <tr><td><code>nomic-embed-text-v1.5</code></td><td>768</td><td>Open source, strong</td><td>Free</td></tr>
+  </table>
+
+  <h3>FAISS Dense Index Types — Cheat Sheet</h3>
+  <table>
+    <tr><th>Index Type</th><th>Metric</th><th>Exact/Approx</th><th>Key Idea</th><th>Use When</th></tr>
+    <tr><td><code>IndexFlatL2</code></td><td>L2 (Euclidean)</td><td>Exact</td><td>Brute-force, scans all vectors</td><td>Small dataset (&lt;100K), accuracy critical</td></tr>
+    <tr><td><code>IndexFlatIP</code></td><td>Inner Product</td><td>Exact</td><td>Brute-force cosine (normalize first)</td><td>Small dataset, semantic similarity</td></tr>
+    <tr><td><code>IndexHNSWFlat</code></td><td>L2 / IP</td><td>Approx (ANN)</td><td>Graph-based navigation</td><td>Medium-large, speed matters</td></tr>
+    <tr><td><code>IndexIVFFlat</code></td><td>L2 / IP</td><td>Approx</td><td>Cluster into N groups, search top groups</td><td>Large dataset, memory ok</td></tr>
+    <tr><td><code>IndexIVFPQ</code></td><td>L2 / IP</td><td>Approx</td><td>IVF + compressed codes</td><td>Very large, RAM constrained</td></tr>
+    <tr><td><code>IndexIVFSQ8</code></td><td>L2 / IP</td><td>Approx</td><td>IVF + 8-bit scalar quantization</td><td>Balance between speed and memory</td></tr>
+  </table>
+
+  <!-- SPARSE -->
+  <span class="section-badge badge-sparse">Sparse Index</span>
+  <h2>1.2 Sparse Indexes — Keyword Precision</h2>
+  <p>Sparse vectors have <strong>mostly zeros</strong> — typically 99%+ zero. Only a few dimensions are non-zero, each corresponding to a specific word/token in the vocabulary. Think of TF-IDF or BM25.</p>
+
+  <div class="warn-box">
+    <div class="label">🎯 BajajBot Bug Fix</div>
+    <p>Customer types: <em>"BFL-PL-2024-MUMBAI-007"</em> — a product code. Dense search fails because no embedding model "understands" what this code means. <strong>Sparse search (BM25) finds it instantly</strong> because it matches exact character sequences.</p>
+  </div>
+
+  <h3>How BM25 Works — Intuition</h3>
+  <p>BM25 is an advanced TF-IDF. For a query word <code>w</code> in document <code>d</code>:</p>
+  <div class="math-block">score(w, d) = IDF(w) × [f(w,d) × (k1 + 1)] / [f(w,d) + k1 × (1 - b + b × |d|/avgdl)]</div>
+  <p>Where: <code>f(w,d)</code> = word frequency in doc, <code>|d|</code> = doc length, <code>avgdl</code> = average doc length, <code>k1=1.2</code>, <code>b=0.75</code>. The denominator <strong>penalizes long documents</strong> — so a word appearing 5 times in a 10-word doc ranks higher than 5 times in a 1000-word doc.</p>
+
+  <div class="concept-box">
+    <div class="label">📌 Key Characteristics</div>
+    <ul style="padding-left:18px;font-size:14.5px;line-height:1.8;">
+      <li>Majority of dimensions are zero (99%+ sparsity)</li>
+      <li>Stored as key-value pairs: <code>{word_position: score}</code></li>
+      <li>Vocabulary size can be 30,000–100,000 dimensions</li>
+      <li>Exact keyword matching — no semantic approximation</li>
+      <li>Interpretable: you know exactly which word caused the match</li>
+    </ul>
+  </div>
+
+  <h3>Sparse Search in LangChain — BM25Retriever</h3>
+  <p>We're using LangChain throughout this course — so no Pinecone needed. LangChain has a native <code>BM25Retriever</code> that runs <strong>fully local</strong>, no API key, no setup:</p>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="cm"># Install: pip install langchain langchain-community rank_bm25</span>
+<span class="kw">from</span> langchain_community.retrievers <span class="kw">import</span> BM25Retriever
+<span class="kw">from</span> langchain.schema <span class="kw">import</span> Document
+
+<span class="cm"># ─── YOUR BAJAJBOT FAQ CHUNKS ─────────────────────────────────</span>
+bajaj_docs = [
+    Document(page_content=<span class="st">"Personal loan BFL-PL-2024 processing fee is 2% of loan amount"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_pl_fee"</span>}),
+    Document(page_content=<span class="st">"Minimum balance for savings account is ₹10,000 per month"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_savings"</span>}),
+    Document(page_content=<span class="st">"EMI deferment or moratorium available during financial hardship"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_emi"</span>}),
+    Document(page_content=<span class="st">"BFL-PL-2024-MUMBAI interest rate is 10.5% per annum"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_rates"</span>}),
+    Document(page_content=<span class="st">"KYC documents required: Aadhaar card, PAN card, 3 months bank statement"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_kyc"</span>}),
+]
+
+<span class="cm"># ─── BUILD BM25 RETRIEVER (fully local, no API key) ───────────</span>
+bm25_retriever = BM25Retriever.from_documents(bajaj_docs)
+bm25_retriever.k = <span class="nb">3</span>   <span class="cm"># return top-3 results</span>
+
+<span class="cm"># ─── QUERY: EXACT PRODUCT CODE ────────────────────────────────</span>
+<span class="cm"># Dense embedding would FAIL here — "BFL-PL-2024-MUMBAI" is not in any model's vocab</span>
+<span class="cm"># BM25 finds it instantly via exact token matching</span>
+results = bm25_retriever.invoke(<span class="st">"BFL-PL-2024-MUMBAI interest rate"</span>)
+
+<span class="kw">for</span> doc <span class="kw">in</span> results:
+    <span class="fn">print</span>(doc.page_content)
+    <span class="fn">print</span>(<span class="st">"Source:"</span>, doc.metadata[<span class="st">"source"</span>])
+    <span class="fn">print</span>(<span class="st">"---"</span>)
+
+<span class="cm"># OUTPUT:</span>
+<span class="cm"># BFL-PL-2024-MUMBAI interest rate is 10.5% per annum</span>
+<span class="cm"># Source: faq_rates</span>
+<span class="cm"># ---</span>
+<span class="cm"># Personal loan BFL-PL-2024 processing fee is 2% of loan amount</span>
+<span class="cm"># Source: faq_pl_fee</span></code></pre>
+
+  <!-- HYBRID -->
+  <span class="section-badge badge-hybrid">Hybrid Index</span>
+  <h2>1.3 Hybrid Indexes — Best of Both Worlds</h2>
+
+  <div class="story-box">
+    <div class="label">🕵️ Two Detectives</div>
+    <p>Think of hybrid search as hiring <strong>two detectives</strong>. Detective Dense has a "poetic sense" — finds contextually related documents even if words don't match. Detective Sparse has a "photographic memory" — catches exact keywords, codes, and specific terms. Both go search. They return to you with their top suspects. You merge their lists with a weighted score. The best answers rise to the top.</p>
+  </div>
+
+  <h3>The Alpha Parameter — Key Concept</h3>
+  <p>Hybrid scoring = <code>alpha × dense_score + (1 - alpha) × sparse_score</code></p>
+  <p>Alpha controls the balance. This is <strong>the most important tunable parameter</strong> in hybrid search:</p>
+
+  <div class="alpha-demo">
+    <h4 style="margin:0 0 12px;font-family:'Bricolage Grotesque',sans-serif;">🎛️ Interactive: Tune Alpha</h4>
+    <div class="slider-wrap">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2)">Sparse</span>
+      <input class="alpha-slider" type="range" min="0" max="100" value="50" id="alphaSlider" oninput="updateAlpha(this.value)"/>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent4)">Dense</span>
+      <span class="alpha-val" id="alphaVal">α=0.5</span>
+    </div>
+    <div class="alpha-result" id="alphaResult">Balanced: equal weight to semantic meaning + exact keywords. Good starting point.</div>
+  </div>
+
+  <h3>Hybrid Search in LangChain — EnsembleRetriever</h3>
+  <p>LangChain's <code>EnsembleRetriever</code> is the native hybrid search pattern — combines <code>BM25Retriever</code> (sparse) + <code>ChromaDB</code> (dense) with configurable weights:</p>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="cm"># Install: pip install langchain langchain-community langchain-openai chromadb rank_bm25</span>
+<span class="kw">from</span> langchain_community.retrievers <span class="kw">import</span> BM25Retriever
+<span class="kw">from</span> langchain_community.vectorstores <span class="kw">import</span> Chroma
+<span class="kw">from</span> langchain.retrievers <span class="kw">import</span> EnsembleRetriever
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> OpenAIEmbeddings, ChatOpenAI
+<span class="kw">from</span> langchain.chains <span class="kw">import</span> RetrievalQA
+<span class="kw">from</span> langchain.schema <span class="kw">import</span> Document
+
+<span class="cm"># ─── YOUR BAJAJBOT DOCUMENTS ──────────────────────────────────</span>
+bajaj_docs = [
+    Document(page_content=<span class="st">"Personal loan BFL-PL-2024 processing fee is 2% of loan amount"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_pl"</span>, <span class="st">"type"</span>: <span class="st">"fees"</span>}),
+    Document(page_content=<span class="st">"EMI deferment or moratorium available during financial hardship"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_emi"</span>, <span class="st">"type"</span>: <span class="st">"policy"</span>}),
+    Document(page_content=<span class="st">"BFL-PL-2024-MUMBAI interest rate is 10.5% per annum"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_rates"</span>, <span class="st">"type"</span>: <span class="st">"rates"</span>}),
+    Document(page_content=<span class="st">"KYC documents required: Aadhaar, PAN, 3 months bank statement"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_kyc"</span>, <span class="st">"type"</span>: <span class="st">"documents"</span>}),
+    Document(page_content=<span class="st">"Can I defer my EMI? Yes, contact helpdesk for loan restructuring options"</span>,
+             metadata={<span class="st">"source"</span>: <span class="st">"faq_defer"</span>, <span class="st">"type"</span>: <span class="st">"policy"</span>}),
+]
+
+<span class="cm"># ─── RETRIEVER 1: DENSE (ChromaDB) ───────────────────────────</span>
+<span class="cm"># Understands MEANING — "defer EMI" ↔ "payment holiday" ↔ "moratorium"</span>
+embeddings = OpenAIEmbeddings()   <span class="cm"># or HuggingFaceEmbeddings for free/local</span>
+
+chroma_db = Chroma.from_documents(
+    documents=bajaj_docs,
+    embedding=embeddings,
+    persist_directory=<span class="st">"./bajajbot_chroma"</span>   <span class="cm"># ← saved to disk, no re-encoding on restart</span>
+)
+dense_retriever = chroma_db.as_retriever(search_kwargs={<span class="st">"k"</span>: <span class="nb">5</span>})
+
+<span class="cm"># ─── RETRIEVER 2: SPARSE (BM25) ──────────────────────────────</span>
+<span class="cm"># Understands EXACT WORDS — "BFL-PL-2024", "Aadhaar", product codes</span>
+sparse_retriever = BM25Retriever.from_documents(bajaj_docs)
+sparse_retriever.k = <span class="nb">5</span>
+
+<span class="cm"># ─── COMBINE: EnsembleRetriever (LangChain Hybrid) ───────────</span>
+<span class="cm"># weights = [sparse_weight, dense_weight]</span>
+<span class="cm">#</span>
+<span class="cm"># weights=[0.5, 0.5] → balanced (good default to start)</span>
+<span class="cm"># weights=[0.3, 0.7] → favor dense  → for conversational queries</span>
+<span class="cm"># weights=[0.7, 0.3] → favor sparse → for product codes, exact terms</span>
+
+hybrid_retriever = EnsembleRetriever(
+    retrievers=[sparse_retriever, dense_retriever],
+    weights=[<span class="nb">0.3</span>, <span class="nb">0.7</span>]   <span class="cm"># 30% BM25 + 70% ChromaDB</span>
+)
+
+<span class="cm"># ─── TEST: QUERY THAT NEEDS BOTH ─────────────────────────────</span>
+query = <span class="st">"What is the interest rate for personal loan BFL-PL-2024?"</span>
+<span class="cm"># Dense handles: "interest rate", "personal loan" semantics</span>
+<span class="cm"># Sparse handles: "BFL-PL-2024" exact code match</span>
+
+results = hybrid_retriever.invoke(query)
+<span class="kw">for</span> i, doc <span class="kw">in</span> <span class="fn">enumerate</span>(results, <span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{i}. [{doc.metadata['source']}] {doc.page_content}"</span>)
+
+<span class="cm"># ─── PLUG INTO FULL RAG CHAIN ────────────────────────────────</span>
+<span class="cm"># The beauty: just swap your retriever — NOTHING else changes!</span>
+llm = ChatOpenAI(model=<span class="st">"gpt-4o-mini"</span>)
+
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=hybrid_retriever,    <span class="cm"># ← drop-in replacement for any other retriever</span>
+    return_source_documents=<span class="kw">True</span>
+)
+
+response = qa_chain.invoke({<span class="st">"query"</span>: query})
+<span class="fn">print</span>(<span class="st">"
+🤖 BajajBot:"</span>, response[<span class="st">"result"</span>])
+<span class="fn">print</span>(<span class="st">"
+📄 Sources used:"</span>)
+<span class="kw">for</span> doc <span class="kw">in</span> response[<span class="st">"source_documents"</span>]:
+    <span class="fn">print</span>(<span class="st">" -"</span>, doc.metadata[<span class="st">"source"</span>])</code></pre>
+
+  <div class="interactive-section">
+    <h3>🧠 Quick Check</h3>
+    <p class="quiz-q">BajajBot gets a query: "What is the interest rate for personal loan code BFL-PL-2024?" Which index type is BEST?</p>
+    <div class="quiz-opts">
+      <div class="quiz-opt" onclick="checkQ(this, false)">A. Dense only — semantic meaning captures "interest rate" well</div>
+      <div class="quiz-opt" onclick="checkQ(this, true)">B. Hybrid — dense handles "interest rate" semantics, sparse catches exact "BFL-PL-2024"</div>
+      <div class="quiz-opt" onclick="checkQ(this, false)">C. Sparse only — BM25 handles everything</div>
+      <div class="quiz-opt" onclick="checkQ(this, false)">D. No index needed — just use LLM directly</div>
+    </div>
+    <div class="quiz-feedback" id="qfeed">Answer is B. <strong>Hybrid wins here.</strong> Dense finds semantically related "interest rate / loan pricing" chunks, while sparse catches the exact product code "BFL-PL-2024" that dense would miss. Alpha ~0.6-0.7 (favor dense) would work well since the semantic part is the primary intent.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 2 — QUANTIZATION -->
+<div class="chapter" id="ch2">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 02</div>
+    <h1 class="ch-title">Vector<br><span class="a1">Quantization</span></h1>
+    <p class="ch-subtitle">100 million vectors × 768 floats = 300 GB. That doesn't fit in RAM. Product Quantization compresses vectors by 16–32x with minimal accuracy loss — here's exactly how.</p>
+  </div>
+
+  <span class="section-badge badge-quant">The Scale Problem</span>
+  <h2>2.1 Why Quantization Exists</h2>
+
+  <div class="warn-box">
+    <div class="label">💣 The Math — Feel the Pain First</div>
+    <p>BajajBot today: 3,000 FAQ chunks × 384 floats × 4 bytes = <strong>~4.6 MB</strong>. No problem.<br><br>
+    BajajBot at Bajaj Finance enterprise scale: 100 million document chunks × 768 floats × 4 bytes = <strong>~300 GB</strong>.<br><br>
+    That won't fit in RAM. You can't load the index. Search breaks. The entire RAG pipeline fails. <strong>This is a real production problem.</strong></p>
+  </div>
+
+  <div class="math-block">100,000,000 × 768 × 4 bytes = 307,200 MB ≈ 300 GB 🔥</div>
+
+  <h2>2.2 The Core Idea — Face Description Analogy</h2>
+
+  <div class="concept-box">
+    <div class="label">👤 Forget "photo palette" — think face description</div>
+    <p>Imagine describing someone's face to a sketch artist. You don't say "pixel 1 is RGB(232, 198, 167), pixel 2 is RGB(229, 195, 162)..." — that's 10 million exact values.</p>
+    <p style="margin-top:12px;">Instead you say: <strong>"Nose shape: type-23 (from our catalogue of 256 nose shapes). Eye shape: type-07. Jawline: type-118. Skin tone: type-44."</strong></p>
+    <p style="margin-top:12px;">You're picking from a pre-built catalogue. The description is <em>approximate</em> — but good enough to recognize the person. And instead of 10 million numbers, you just stored 4 catalogue IDs.</p>
+    <p style="margin-top:12px;"><strong>In PQ terms:</strong> each "body part" = a sub-vector chunk. Each catalogue = a codebook with 256 cluster centers. Each catalogue ID = 1 byte.</p>
+  </div>
+
+  <h2>2.3 Why You MUST Split the Vector — The Key Insight</h2>
+
+  <div class="warn-box">
+    <div class="label">🧠 The Question Students Always Ask</div>
+    <p><strong>"Why not just build ONE big codebook for the whole 384-dim vector?"</strong></p>
+    <p style="margin-top:10px;">Answer: Because 256 centroids <strong>cannot meaningfully represent a 384-dimensional space</strong>. Imagine trying to describe every possible face with just 256 templates — you'd need millions of templates. The approximation error would be catastrophic.</p>
+    <p style="margin-top:10px;">But if you split the face into 96 independent 4-dim sub-spaces, <strong>256 templates per sub-space is actually enough</strong>. Each small space is simple enough that 256 centroids cover it well.</p>
+  </div>
+
+  <div class="flow" style="flex-direction:column;gap:20px;align-items:flex-start;">
+    <div style="background:white;border:2px solid var(--border);border-radius:12px;padding:20px;width:100%;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:8px;">ORIGINAL VECTOR (384 dimensions)</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink);">V = [0.91, 0.43, 0.05, -0.34, 0.88, 0.12, -0.67, 0.23, ... × 384]</div>
+      <div style="margin-top:8px;font-size:13px;color:var(--muted);">Storage: 384 × 4 bytes = <strong>1,536 bytes</strong></div>
+    </div>
+    <div style="text-align:center;width:100%;font-size:28px;color:var(--muted);">↓ split into 96 chunks of 4 dims each</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;">
+      <div style="background:#f0f0ff;border:2px solid var(--accent4);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent4);">CHUNK 1</div>
+        <div style="font-size:11px;margin-top:4px;">[0.91, 0.43, 0.05, -0.34]</div>
+        <div style="margin-top:6px;font-size:12px;color:var(--accent3);">→ centroid <strong>23</strong></div>
+      </div>
+      <div style="background:#f0f0ff;border:2px solid var(--accent4);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent4);">CHUNK 2</div>
+        <div style="font-size:11px;margin-top:4px;">[0.88, 0.12, -0.67, 0.23]</div>
+        <div style="margin-top:6px;font-size:12px;color:var(--accent3);">→ centroid <strong>118</strong></div>
+      </div>
+      <div style="background:#f0f0ff;border:2px solid var(--accent4);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent4);">CHUNK 3</div>
+        <div style="font-size:11px;margin-top:4px;">[0.33, -0.91, 0.44, 0.07]</div>
+        <div style="margin-top:6px;font-size:12px;color:var(--accent3);">→ centroid <strong>7</strong></div>
+      </div>
+      <div style="background:#eee;border:2px dashed var(--border);border-radius:8px;padding:12px;text-align:center;font-size:12px;color:var(--muted);">... × 93 more chunks</div>
+    </div>
+    <div style="text-align:center;width:100%;font-size:28px;color:var(--muted);">↓ store only the centroid IDs</div>
+    <div style="background:#1a1a18;border-radius:12px;padding:20px;width:100%;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent3);margin-bottom:8px;">COMPRESSED REPRESENTATION</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#e8e4d9;">[23, 118, 7, 201, 44, 88, ...] ← 96 numbers, each 0–255 = 1 byte</div>
+      <div style="margin-top:8px;font-size:13px;color:#aaa;">Storage: 96 × 1 byte = <strong>96 bytes</strong> (was 1,536 bytes → <strong>16x compression</strong>)</div>
+    </div>
+  </div>
+
+  <h2>2.4 The Compression Math — Feel the Win</h2>
+
+  <div class="math-block">Original:   384 dims × 4 bytes (float32) = 1,536 bytes per vector
+After PQ:   96 chunks × 1 byte (uint8) = 96 bytes per vector
+Ratio:      16x compression ✅
+
+100M vectors × 1,536 bytes = 300 GB  →  100M × 96 bytes = 18 GB 🎉
+Fits in a normal server with 32GB RAM!</div>
+
+  <h2>2.5 The 3 Steps of PQ — Exactly How It Works</h2>
+
+  <table>
+    <tr><th>Step</th><th>What happens</th><th>Code equivalent</th></tr>
+    <tr><td><strong>1. Split</strong></td><td>Divide each 384-dim vector into m=96 sub-vectors of 4 dims each</td><td><code>m=96</code> parameter in FAISS</td></tr>
+    <tr><td><strong>2. Train codebook</strong></td><td>Run k-means on each sub-space → 256 cluster centers per sub-space</td><td><code>index.train(emb)</code></td></tr>
+    <tr><td><strong>3. Encode</strong></td><td>Replace each sub-vector with the ID (0–255) of its nearest centroid</td><td><code>index.add(emb)</code></td></tr>
+  </table>
+
+  <h2>2.6 FAISS PQ Code — Step by Step</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">import</span> faiss
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># Simulate embeddings (replace with your actual BajajBot embeddings)</span>
+N, d = <span class="nb">10_000</span>, <span class="nb">384</span>   <span class="cm"># 10K docs, 384-dim vectors</span>
+emb  = np.random.randn(N, d).astype(<span class="st">"float32"</span>)
+
+<span class="cm"># ─── STEP 1: CHOOSE YOUR PQ PARAMETERS ───────────────────────</span>
+m     = <span class="nb">96</span>   <span class="cm"># number of chunks (d must be divisible by m: 384/96 = 4 ✓)</span>
+                <span class="cm"># more chunks = better accuracy, slightly more memory</span>
+nbits = <span class="nb">8</span>    <span class="cm"># bits per chunk → 2^8 = 256 centroids per codebook</span>
+                <span class="cm"># 8 bits = 1 byte per chunk (standard choice)</span>
+
+<span class="cm"># ─── STEP 2: CREATE INDEX ─────────────────────────────────────</span>
+index_pq = faiss.IndexPQ(d, m, nbits)
+<span class="cm"># d=384 dimensions, m=96 sub-quantizers, nbits=8 bits</span>
+
+<span class="cm"># ─── STEP 3: TRAIN CODEBOOK ───────────────────────────────────</span>
+<span class="cm"># k-means runs on each sub-space separately</span>
+<span class="cm"># Needs at least 256 * m training samples (more is better)</span>
+train_size = <span class="fn">min</span>(<span class="nb">50_000</span>, N)
+train_data = emb[np.random.choice(N, train_size, replace=<span class="kw">False</span>)]
+
+<span class="fn">print</span>(<span class="st">"Training codebooks... (builds 96 separate k-means models)"</span>)
+index_pq.train(train_data)   <span class="cm"># ← this is where centroids are learned</span>
+<span class="fn">print</span>(<span class="st">"Training done!"</span>)
+
+<span class="cm"># ─── STEP 4: ADD VECTORS (stored as compressed codes) ─────────</span>
+index_pq.add(emb)   <span class="cm"># stores 96 bytes per vector, not 1536 bytes</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Index has {index_pq.ntotal} vectors"</span>)
+
+<span class="cm"># ─── STEP 5: SEARCH ───────────────────────────────────────────</span>
+q     = emb[<span class="nb">0</span>:<span class="nb">1</span>]    <span class="cm"># query: shape (1, 384)</span>
+D, I  = index_pq.search(q, k=<span class="nb">5</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Top-5 IDs:       {I[0]}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Approx distances: {D[0].round(3)}"</span>)
+<span class="cm"># Distances are APPROXIMATE — that's the trade-off</span>
+
+<span class="cm"># ─── MEMORY COMPARISON ────────────────────────────────────────</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"
+Memory comparison for {N} vectors:"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"  Flat (exact):  {N * d * 4 / 1e6:.1f} MB"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"  PQ (compressed): {N * m * nbits // 8 / 1e6:.1f} MB"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"  Compression: {(d * 4) // (m * nbits // 8)}x"</span>)
+
+<span class="cm"># OUTPUT:</span>
+<span class="cm"># Memory comparison for 10000 vectors:</span>
+<span class="cm">#   Flat (exact):    15.4 MB</span>
+<span class="cm">#   PQ (compressed): 0.96 MB</span>
+<span class="cm">#   Compression: 16x</span></code></pre>
+
+  <h2>2.7 IVF + PQ — The Production Combo</h2>
+  <p>Use <strong>IVF+PQ</strong> when your dataset is large. IVF clusters documents into groups — at search time, only the top-N clusters are searched (not all). PQ compresses the vectors inside each cluster.</p>
+
+  <div class="concept-box">
+    <div class="label">📌 IVF+PQ Mental Model</div>
+    <p><strong>IVF</strong> = divide a library into sections (Finance, Law, Medical...). When searching, only look in the relevant section — not the entire library.</p>
+    <p style="margin-top:8px;"><strong>PQ</strong> = within each section, store book summaries instead of full books. Fast to compare, tiny memory.</p>
+    <p style="margin-top:8px;"><strong>Together</strong> = find the right section (IVF) → compare compressed summaries (PQ). Fast + memory efficient.</p>
+  </div>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="cm"># IVF + PQ — the go-to for large-scale production</span>
+N, d    = <span class="nb">10_000</span>, <span class="nb">384</span>
+m       = <span class="nb">96</span>      <span class="cm"># PQ sub-quantizers</span>
+nbits   = <span class="nb">8</span>       <span class="cm"># 256 centroids per codebook</span>
+nlist   = <span class="nb">100</span>     <span class="cm"># IVF clusters (rule of thumb: sqrt(N))</span>
+nprobe  = <span class="nb">10</span>      <span class="cm"># clusters to search at query time ← speed/recall knob</span>
+                    <span class="cm"># higher nprobe = better recall, slower search</span>
+
+<span class="cm"># IVF needs a coarse quantizer (finds nearest cluster centroid)</span>
+quantizer    = faiss.IndexFlatL2(d)
+index_ivfpq  = faiss.IndexIVFPQ(quantizer, d, nlist, m, nbits)
+
+<span class="cm"># Train: IVF centroids + PQ codebooks (needs min 39*nlist samples)</span>
+train_size = <span class="fn">min</span>(<span class="nb">100_000</span>, N)
+index_ivfpq.train(emb[np.random.choice(N, train_size, replace=<span class="kw">False</span>)])
+
+index_ivfpq.add(emb)
+index_ivfpq.nprobe = nprobe    <span class="cm"># set BEFORE searching</span>
+
+D, I = index_ivfpq.search(emb[<span class="nb">0</span>:<span class="nb">1</span>], k=<span class="nb">5</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"IVF+PQ Top-5: {I[0]}"</span>)
+
+<span class="cm"># ─── nprobe TUNING GUIDE ──────────────────────────────────────</span>
+<span class="cm"># nprobe=1   → fastest, lowest recall (only checks 1 cluster)</span>
+<span class="cm"># nprobe=10  → good balance (start here)</span>
+<span class="cm"># nprobe=nlist → same as brute force (defeats the purpose)</span></code></pre>
+
+  <h2>2.8 Trade-offs — Know These Before Using PQ</h2>
+  <table>
+    <tr><th>Trade-off</th><th>What Happens</th><th>How to Mitigate</th></tr>
+    <tr><td>✗ Accuracy loss</td><td>Distances are approximate — nearest neighbor can change vs exact search</td><td>Increase m or nbits; re-rank top candidates with exact vectors</td></tr>
+    <tr><td>✗ Must train first</td><td>k-means training on large data takes time (minutes to hours)</td><td>Train on a representative sample of 50K–100K vectors</td></tr>
+    <tr><td>✗ Parameter tuning</td><td>Wrong m/nlist/nprobe = poor recall or wasted memory</td><td>Benchmark recall@K at different settings before deploying</td></tr>
+    <tr><td>✗ Distribution drift</td><td>Codebooks become suboptimal as data changes over time</td><td>Retrain periodically; monitor recall@K in production</td></tr>
+    <tr><td>✓ Massive compression</td><td>16–32x smaller index — fits in RAM at enterprise scale</td><td>—</td></tr>
+    <tr><td>✓ Faster search</td><td>Comparing compressed codes is much cheaper than comparing floats</td><td>—</td></tr>
+  </table>
+
+  <div class="win-box">
+    <div class="label">🎯 When Should BajajBot Use PQ?</div>
+    <p><strong>Current state (3K chunks):</strong> Don't use PQ. Use <code>IndexFlatIP</code> — exact, fast, tiny memory.<br>
+    <strong>10K–1M chunks:</strong> Use <code>IndexHNSWFlat</code> — fast ANN, no compression needed.<br>
+    <strong>&gt;10M chunks or RAM constrained:</strong> Use <code>IndexIVFPQ</code> — compression becomes essential.</p>
+    <p style="margin-top:10px;">For this course: <strong>understand PQ conceptually</strong>. You won't need it in code until you're building at Bajaj Finance's actual scale.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 3 — EVAL METRICS -->
+<div class="chapter" id="ch3">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 03</div>
+    <h1 class="ch-title">Evaluating<br><span class="a4">Retrieval Quality</span></h1>
+    <p class="ch-subtitle">You've built the retrieval pipeline. But is it actually working? These metrics tell you whether BajajBot is fetching the RIGHT chunks — not just any chunks.</p>
+  </div>
+
+  <div class="story-box">
+    <div class="label">🎬 The Problem</div>
+    <p>BajajBot is returning results. But your PM asks: <em>"Are you sure it's fetching the right documents?"</em> You can't just say "it feels right". You need <strong>numbers</strong>. That's what retrieval metrics are for.</p>
+    <p style="margin-top:10px;">Imagine BajajBot searched <em>"vegetarian loan products Mumbai"</em> and returned: [1] Random insurance doc, [2] Personal Loan Mumbai ✓, [3] Home Loan ✓, [4] Credit Card, [5] Auto Loan. Even though 2 relevant docs appear, the <strong>first result was wrong</strong> — and users only look at the top result.</p>
+  </div>
+
+  <span class="section-badge badge-eval">Order-Unaware</span>
+  <h2>3.1 Precision@K and Recall@K</h2>
+  <p>These metrics only care <strong>whether</strong> relevant results appear in top-K, not <strong>where</strong> they are.</p>
+
+  <div class="cmp-grid">
+    <div class="cmp-card dense">
+      <h4>Precision@K</h4>
+      <p style="font-size:14px;">Of the K results returned, what fraction were actually relevant?</p>
+      <div class="math-block" style="font-size:12px;margin-top:12px;">P@K = (relevant in top-K) / K</div>
+      <p style="font-size:13px;margin-top:10px;color:var(--muted);">If top-5 has 3 relevant docs → P@5 = 3/5 = <strong>0.60</strong></p>
+    </div>
+    <div class="cmp-card sparse">
+      <h4>Recall@K</h4>
+      <p style="font-size:14px;">Of ALL relevant docs in the corpus, how many did we find in top-K?</p>
+      <div class="math-block" style="font-size:12px;margin-top:12px;">R@K = (relevant in top-K) / (total relevant)</div>
+      <p style="font-size:13px;margin-top:10px;color:var(--muted);">If 8 relevant total, 3 in top-5 → R@5 = 3/8 = <strong>0.375</strong></p>
+    </div>
+  </div>
+
+  <span class="section-badge badge-eval">Order-Aware</span>
+  <h2>3.2 MRR, MAP, NDCG — Order Matters</h2>
+  <p>In real systems, rank-1 is gold. Rank-5 is already disappointing. These metrics penalize relevant results that appear lower in the list.</p>
+
+  <table>
+    <tr><th>Metric</th><th>What It Measures</th><th>Best For</th></tr>
+    <tr><td><strong>MRR@K</strong></td><td>Where does the FIRST relevant doc appear? Score = 1/rank</td><td>When only the top answer matters</td></tr>
+    <tr><td><strong>MAP@K</strong></td><td>Average precision at each relevant doc rank — rewards putting many relevants early</td><td>Multi-answer queries</td></tr>
+    <tr><td><strong>NDCG@K</strong></td><td>Discounted gain — logarithmically penalizes lower ranks, normalized to 0-1</td><td>Graded relevance (some answers more relevant than others)</td></tr>
+  </table>
+
+  <div class="concept-box">
+    <div class="label">📐 Worked Example — All Metrics</div>
+    <p><strong>Top-5 results:</strong> [A, B, C, D, E] | <strong>Relevant set:</strong> {B, E, G} (3 total relevant docs)</p>
+    <ul style="padding-left:20px;font-size:14.5px;line-height:2.2;">
+      <li><strong>Precision@5</strong> = 2/5 = 0.40 (B and E are in top-5)</li>
+      <li><strong>Recall@5</strong> = 2/3 = 0.67 (found 2 of 3 relevant docs)</li>
+      <li><strong>MRR@5</strong> = 1/2 = 0.50 (first relevant is B at rank 2)</li>
+      <li><strong>AP@5</strong> = (0.5 + 0.4) / 3 = 0.30 (precision at rank 2 + rank 5, divide by 3 total relevant)</li>
+      <li><strong>NDCG@5</strong> = DCG / IDCG &lt; 1.0 (sub-optimal because B and E aren't at top)</li>
+    </ul>
+  </div>
+
+  <h2>3.3 Full Implementation — All Metrics</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">import</span> math
+
+<span class="cm"># ─── METRIC FUNCTIONS ─────────────────────────────────────────</span>
+
+<span class="kw">def</span> <span class="fn">precision_at_k</span>(ranked_ids, relevant_ids, k):
+    <span class="st">"""Of top-K results, what fraction are relevant?"""</span>
+    topk = ranked_ids[:k]
+    hits = <span class="fn">sum</span>(<span class="nb">1</span> <span class="kw">for</span> x <span class="kw">in</span> topk <span class="kw">if</span> x <span class="kw">in</span> relevant_ids)
+    <span class="kw">return</span> hits / <span class="fn">max</span>(<span class="nb">1</span>, k)
+
+<span class="kw">def</span> <span class="fn">recall_at_k</span>(ranked_ids, relevant_ids, k):
+    <span class="st">"""Of all relevant docs, how many appear in top-K?"""</span>
+    <span class="kw">if not</span> relevant_ids: <span class="kw">return</span> <span class="nb">0.0</span>
+    topk = ranked_ids[:k]
+    hits = <span class="fn">sum</span>(<span class="nb">1</span> <span class="kw">for</span> x <span class="kw">in</span> topk <span class="kw">if</span> x <span class="kw">in</span> relevant_ids)
+    <span class="kw">return</span> hits / <span class="fn">len</span>(relevant_ids)
+
+<span class="kw">def</span> <span class="fn">mrr_at_k</span>(ranked_ids, relevant_ids, k):
+    <span class="st">"""Mean Reciprocal Rank: 1/rank_of_first_relevant"""</span>
+    <span class="kw">for</span> i, x <span class="kw">in</span> <span class="fn">enumerate</span>(ranked_ids[:k], start=<span class="nb">1</span>):
+        <span class="kw">if</span> x <span class="kw">in</span> relevant_ids:
+            <span class="kw">return</span> <span class="nb">1.0</span> / i
+    <span class="kw">return</span> <span class="nb">0.0</span>
+
+<span class="kw">def</span> <span class="fn">average_precision_at_k</span>(ranked_ids, relevant_ids, k):
+    <span class="st">"""Average precision — rewards putting ALL relevants early"""</span>
+    <span class="kw">if not</span> relevant_ids: <span class="kw">return</span> <span class="nb">0.0</span>
+    hits, ap = <span class="nb">0</span>, <span class="nb">0.0</span>
+    <span class="kw">for</span> i, x <span class="kw">in</span> <span class="fn">enumerate</span>(ranked_ids[:k], start=<span class="nb">1</span>):
+        <span class="kw">if</span> x <span class="kw">in</span> relevant_ids:
+            hits += <span class="nb">1</span>
+            ap   += hits / i    <span class="cm"># precision at this rank</span>
+    <span class="kw">return</span> ap / <span class="fn">len</span>(relevant_ids)   <span class="cm"># divide by TOTAL relevant (not just found)</span>
+
+<span class="kw">def</span> <span class="fn">dcg_at_k</span>(ranked_ids, gains_dict, k):
+    <span class="st">"""Discounted Cumulative Gain — logarithmically penalizes lower ranks"""</span>
+    dcg = <span class="nb">0.0</span>
+    <span class="kw">for</span> i, x <span class="kw">in</span> <span class="fn">enumerate</span>(ranked_ids[:k], start=<span class="nb">1</span>):
+        g = gains_dict.get(x, <span class="nb">0.0</span>)        <span class="cm"># 0 if not relevant</span>
+        dcg += g / math.log2(i + <span class="nb">1</span>)       <span class="cm"># discount by log2(rank+1)</span>
+    <span class="kw">return</span> dcg
+
+<span class="kw">def</span> <span class="fn">ndcg_at_k</span>(ranked_ids, gains_dict, k):
+    <span class="st">"""Normalized DCG — compare to ideal ranking. Score: 0–1"""</span>
+    dcg  = <span class="fn">dcg_at_k</span>(ranked_ids, gains_dict, k)
+    ideal = <span class="fn">sorted</span>(gains_dict.items(), key=<span class="kw">lambda</span> kv: kv[<span class="nb">1</span>], reverse=<span class="kw">True</span>)
+    idcg = <span class="fn">dcg_at_k</span>([d[<span class="nb">0</span>] <span class="kw">for</span> d <span class="kw">in</span> ideal], gains_dict, k)
+    <span class="kw">return</span> <span class="nb">0.0</span> <span class="kw">if</span> idcg == <span class="nb">0</span> <span class="kw">else</span> dcg / idcg
+
+<span class="cm"># ─── BAJAJBOT EVALUATION EXAMPLE ──────────────────────────────</span>
+<span class="cm"># Query: "What is the processing fee for personal loan?"</span>
+ranked    = [<span class="st">"faq_credit_card"</span>, <span class="st">"faq_personal_loan_fee"</span>,
+             <span class="st">"faq_home_loan"</span>, <span class="st">"faq_pl_docs"</span>, <span class="st">"faq_emi_calc"</span>]
+relevant  = {<span class="st">"faq_personal_loan_fee"</span>, <span class="st">"faq_pl_docs"</span>, <span class="st">"faq_emi_calc"</span>}
+gains     = {<span class="st">"faq_personal_loan_fee"</span>: <span class="nb">3</span>,  <span class="cm"># most relevant</span>
+             <span class="st">"faq_pl_docs"</span>: <span class="nb">2</span>,            <span class="cm"># somewhat relevant</span>
+             <span class="st">"faq_emi_calc"</span>: <span class="nb">1</span>}           <span class="cm"># marginally relevant</span>
+
+k = <span class="nb">5</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Precision@{k}:  {precision_at_k(ranked, relevant, k):.3f}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Recall@{k}:     {recall_at_k(ranked, relevant, k):.3f}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"MRR@{k}:        {mrr_at_k(ranked, relevant, k):.3f}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"AP@{k}:         {average_precision_at_k(ranked, relevant, k):.3f}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"NDCG@{k}:       {ndcg_at_k(ranked, gains, k):.3f}"</span>)
+
+<span class="cm"># Expected output (approx):</span>
+<span class="cm"># Precision@5:  0.600</span>
+<span class="cm"># Recall@5:     1.000  ← all 3 relevant found in top-5</span>
+<span class="cm"># MRR@5:        0.500  ← first relevant at rank 2</span>
+<span class="cm"># AP@5:         0.511</span>
+<span class="cm"># NDCG@5:       0.734  ← not 1.0 because best doc isn't rank-1</span></code></pre>
+
+  <div class="instructor-box">
+    <div class="label">👨‍🏫 Instructor Note</div>
+    <p>Run this live. Then ask students: <em>"How would these numbers change if <code>faq_personal_loan_fee</code> was at rank 1 instead of rank 2?"</em> Answer: MRR becomes 1.0, NDCG increases significantly. That's the power of order-aware metrics.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 4 — QPS & LATENCY -->
+<div class="chapter" id="ch4">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 04</div>
+    <h1 class="ch-title">QPS &<br><span class="a2">Latency</span></h1>
+    <p class="ch-subtitle">Retrieval quality is only half the story. In production, BajajBot needs to handle thousands of concurrent users without slowing down. That's QPS and latency.</p>
+  </div>
+
+  <h2>4.1 QPS — Queries Per Second</h2>
+  <p>QPS measures <strong>how many queries your system can process per second</strong> across a measurement window. It depends on hardware, index type, top-k size, efSearch, and concurrency.</p>
+
+  <div class="warn-box">
+    <div class="label">⚠️ QPS Alone is Misleading</div>
+    <p>"Our system handles 200,000 QPS!" sounds great. But if 1% of queries take 2 seconds, you have a real problem — those are millions of failed requests per day at scale.</p>
+  </div>
+
+  <h2>4.2 Latency Percentiles — p50 / p95 / p99</h2>
+  <p>Never trust the average. In production, <strong>the worst 1% of queries define your system's stability</strong>.</p>
+
+  <div class="lat-table">
+    <table>
+      <tr><th>Metric</th><th>Value</th><th>Meaning</th></tr>
+      <tr><td>QPS</td><td>150,000</td><td>Great throughput</td></tr>
+      <tr><td>p50 (median)</td><td>5 ms</td><td>Typical user waits 5ms — excellent</td></tr>
+      <tr><td>p95</td><td>50 ms</td><td>Slowest 5% wait 50ms — acceptable</td></tr>
+      <tr><td>p99</td><td>1,200 ms 🔴</td><td>1% of users wait >1s — causes timeouts!</td></tr>
+    </table>
+  </div>
+
+  <p>Even with great QPS and p50, a <strong>high p99 kills production</strong>. Frontend timeouts, cascading delays in RAG pipelines, SLA breaches.</p>
+
+  <h2>4.3 QPS + Latency Measurement — Full Code</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">import</span> time
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> faiss
+<span class="kw">from</span> concurrent.futures <span class="kw">import</span> ThreadPoolExecutor, as_completed
+
+<span class="cm"># Assume hnsw_idmap is your built FAISS index from Session 3</span>
+<span class="cm"># Assume model is your SentenceTransformer</span>
+
+<span class="cm"># ─── BUILD REALISTIC QUERY SET ────────────────────────────────</span>
+query_texts = [
+    <span class="st">"What is the minimum balance for savings account?"</span>,
+    <span class="st">"How do I apply for a personal loan BFL-PL-2024?"</span>,
+    <span class="st">"What is the processing fee for home loan?"</span>,
+    <span class="st">"Can I defer my EMI payment this month?"</span>,
+    <span class="st">"What documents needed for vehicle loan?"</span>,
+    <span class="st">"What is interest rate for fixed deposit?"</span>,
+    <span class="st">"How to close my credit card account?"</span>,
+    <span class="st">"What is the foreclosure charge on personal loan?"</span>,
+    <span class="st">"How to update my KYC details in app?"</span>,
+    <span class="st">"Is there a prepayment penalty on home loans?"</span>
+] * <span class="nb">200</span>    <span class="cm"># 2000 queries total</span>
+
+top_k = <span class="nb">10</span>
+
+<span class="cm"># ─── ENCODE QUERIES ONCE ──────────────────────────────────────</span>
+<span class="cm"># Measure SEARCH latency only, not embedding latency</span>
+q_mat = model.encode(query_texts, convert_to_numpy=<span class="kw">True</span>,
+                     normalize_embeddings=<span class="kw">False</span>).astype(<span class="st">"float32"</span>)
+faiss.normalize_L2(q_mat)   <span class="cm"># normalize for cosine via IP</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Encoded {len(query_texts)} queries: {q_mat.shape}"</span>)
+
+<span class="cm"># ─── WARM-UP (avoid cold-cache artifacts) ─────────────────────</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">min</span>(<span class="nb">50</span>, <span class="fn">len</span>(q_mat))):
+    hnsw_idmap.search(q_mat[i:<span class="nb">1</span>+i], top_k)
+
+<span class="cm"># ─── SINGLE-THREAD BASELINE ───────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">measure_single_thread</span>(q_vectors):
+    lat_ms = []
+    start  = time.perf_counter()
+    <span class="kw">for</span> qv <span class="kw">in</span> q_vectors:
+        t0 = time.perf_counter()
+        hnsw_idmap.search(qv.reshape(<span class="nb">1</span>, -<span class="nb">1</span>), top_k)
+        lat_ms.append((time.perf_counter() - t0) * <span class="nb">1000</span>)
+    total = time.perf_counter() - start
+    lat_ms = np.array(lat_ms)
+    <span class="kw">return</span> {
+        <span class="st">"mode"</span>:          <span class="st">"single-thread"</span>,
+        <span class="st">"total_queries"</span>: <span class="fn">len</span>(q_vectors),
+        <span class="st">"total_time_s"</span>:  total,
+        <span class="st">"qps"</span>:           <span class="fn">len</span>(q_vectors) / total,
+        <span class="st">"p50_ms"</span>:        <span class="fn">float</span>(np.percentile(lat_ms, <span class="nb">50</span>)),
+        <span class="st">"p95_ms"</span>:        <span class="fn">float</span>(np.percentile(lat_ms, <span class="nb">95</span>)),
+        <span class="st">"p99_ms"</span>:        <span class="fn">float</span>(np.percentile(lat_ms, <span class="nb">99</span>)),
+    }
+
+<span class="cm"># ─── CONCURRENT + BATCHED ─────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">measure_concurrent</span>(q_vectors, max_workers=<span class="nb">8</span>, batch_size=<span class="nb">8</span>):
+    batches = [q_vectors[i:i+batch_size]
+               <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">0</span>, <span class="fn">len</span>(q_vectors), batch_size)]
+    lat_ms = []
+    start  = time.perf_counter()
+
+    <span class="kw">def</span> <span class="fn">task</span>(batch):
+        t0 = time.perf_counter()
+        hnsw_idmap.search(batch, top_k)    <span class="cm"># matrix search — all at once</span>
+        per_q_ms = ((time.perf_counter() - t0) * <span class="nb">1000</span>) / <span class="fn">len</span>(batch)
+        <span class="kw">return</span> per_q_ms, <span class="fn">len</span>(batch)
+
+    <span class="kw">with</span> ThreadPoolExecutor(max_workers=max_workers) <span class="kw">as</span> ex:
+        futures = [ex.submit(task, b) <span class="kw">for</span> b <span class="kw">in</span> batches]
+        <span class="kw">for</span> fut <span class="kw">in</span> as_completed(futures):
+            per_q_ms, n = fut.result()
+            lat_ms.extend([per_q_ms] * n)
+
+    total  = time.perf_counter() - start
+    lat_ms = np.array(lat_ms)
+    <span class="kw">return</span> {
+        <span class="st">"mode"</span>:          <span class="fn">f</span><span class="st">"workers={max_workers} batch={batch_size}"</span>,
+        <span class="st">"qps"</span>:           <span class="fn">len</span>(q_vectors) / total,
+        <span class="st">"p50_ms"</span>:        <span class="fn">float</span>(np.percentile(lat_ms, <span class="nb">50</span>)),
+        <span class="st">"p95_ms"</span>:        <span class="fn">float</span>(np.percentile(lat_ms, <span class="nb">95</span>)),
+        <span class="st">"p99_ms"</span>:        <span class="fn">float</span>(np.percentile(lat_ms, <span class="nb">99</span>)),
+    }
+
+<span class="cm"># ─── RUN & COMPARE ────────────────────────────────────────────</span>
+s = <span class="fn">measure_single_thread</span>(q_mat)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"\n[SINGLE THREAD] QPS={s['qps']:.0f} p50={s['p50_ms']:.2f}ms p99={s['p99_ms']:.2f}ms"</span>)
+
+<span class="kw">for</span> workers <span class="kw">in</span> [<span class="nb">4</span>, <span class="nb">8</span>]:
+    <span class="kw">for</span> bsz <span class="kw">in</span> [<span class="nb">1</span>, <span class="nb">8</span>, <span class="nb">32</span>]:
+        c = <span class="fn">measure_concurrent</span>(q_mat, workers, bsz)
+        <span class="fn">print</span>(<span class="fn">f</span><span class="st">"[{c['mode']}] QPS={c['qps']:.0f} p50={c['p50_ms']:.2f}ms p99={c['p99_ms']:.2f}ms"</span>)</code></pre>
+
+  <h2>4.4 Index Build Time, Memory & Disk I/O</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">import</span> os, psutil, time, faiss, numpy <span class="kw">as</span> np
+
+<span class="kw">def</span> <span class="fn">rss_mb</span>():
+    <span class="kw">return</span> psutil.Process(os.getpid()).memory_info().rss / (<span class="nb">1024</span>**<span class="nb">2</span>)
+
+<span class="cm"># ─── BUILD TIME ───────────────────────────────────────────────</span>
+N, d   = emb_norm.shape
+metric = faiss.METRIC_INNER_PRODUCT
+base   = faiss.IndexHNSWFlat(d, <span class="nb">32</span>, metric)
+base.hnsw.efConstruction = <span class="nb">200</span>
+index  = faiss.IndexIDMap2(base)
+
+t0 = time.perf_counter()
+index.add_with_ids(emb_norm, ids_int64)
+build_time = time.perf_counter() - t0
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Build time: {build_time:.3f}s | Rate: {N/build_time:.0f} vectors/s"</span>)
+
+<span class="cm"># ─── MEMORY ───────────────────────────────────────────────────</span>
+before = <span class="fn">rss_mb</span>()
+index2 = faiss.IndexIDMap2(faiss.IndexHNSWFlat(d, <span class="nb">32</span>, metric))
+index2.add_with_ids(emb_norm, ids_int64)
+after  = <span class="fn">rss_mb</span>()
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Memory delta: {after - before:.2f} MB"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Raw vectors: {N * d * 4 / 1e6:.2f} MB"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"HNSW graph overhead: {(after-before) - N*d*4/1e6:.2f} MB"</span>)
+
+<span class="cm"># ─── DISK I/O ─────────────────────────────────────────────────</span>
+SAVE_PATH = <span class="st">"bajajbot.index"</span>
+
+t0 = time.perf_counter()
+faiss.write_index(index, SAVE_PATH)
+write_t = time.perf_counter() - t0
+size_mb = os.path.getsize(SAVE_PATH) / (<span class="nb">1024</span>**<span class="nb">2</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Saved: {size_mb:.3f} MB in {write_t:.3f}s"</span>)
+
+t0 = time.perf_counter()
+idx_loaded = faiss.read_index(SAVE_PATH)
+<span class="fn">print</span>(<span class="fn">f</span><span class="st">"Loaded in {time.perf_counter()-t0:.3f}s"</span>)</code></pre>
+
+  <div class="win-box">
+    <div class="label">✅ Production Readiness Matrix</div>
+    <table style="margin:0;">
+      <tr><th>Scenario</th><th>Verdict</th></tr>
+      <tr><td>High QPS + low p99</td><td>✅ Production-ready</td></tr>
+      <tr><td>High QPS + high p99</td><td>⚠️ Fast for most, unstable for some</td></tr>
+      <tr><td>Low QPS + low latency</td><td>⚠️ Under-utilized, scale up workers</td></tr>
+      <tr><td>Low QPS + high latency</td><td>❌ Bottleneck — not production-ready</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 5 — BI vs CROSS ENCODER -->
+<div class="chapter" id="ch5">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 05 · New Concept</div>
+    <h1 class="ch-title"><span class="a4">Bi-Encoder</span> vs<br><span class="a3">Cross-Encoder</span></h1>
+    <p class="ch-subtitle">You've been using bi-encoders since Session 2 without knowing it. Reranking (Chapter 6) uses cross-encoders. Understanding the difference is why reranking works.</p>
+  </div>
+
+  <div class="warn-box">
+    <div class="label">⚠️ This was never introduced in the course</div>
+    <p>Every time you called <code>model.encode("What is my EMI?")</code> — that's a bi-encoder. Every time Pinecone BGE Reranker runs — that's a cross-encoder. Same word "encoder", completely different architectures. Let's fix that gap right now.</p>
+  </div>
+
+  <h2>5.1 The Fundamental Difference</h2>
+
+  <div class="cmp-grid">
+    <div class="cmp-card dense" style="border-color:var(--accent4);">
+      <h4 style="color:var(--accent4);">🔵 Bi-Encoder</h4>
+      <p style="font-size:14px;margin-bottom:12px;">Encodes query and document <strong>separately and independently</strong>. They never "see" each other. Score = cosine similarity of two vectors.</p>
+      <div style="background:#f0f0ff;border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;">
+        query  → [Encoder] → vector q<br>
+        doc    → [Encoder] → vector d<br>
+        score  = cosine(q, d)
+      </div>
+      <p style="font-size:13px;margin-top:12px;color:var(--muted);">They are scored independently — never compared side by side.</p>
+    </div>
+    <div class="cmp-card hybrid" style="border-color:var(--accent3);">
+      <h4 style="color:var(--accent3);">🟢 Cross-Encoder</h4>
+      <p style="font-size:14px;margin-bottom:12px;">Reads query + document <strong>together as one input</strong>. Model sees full interaction. Outputs a single relevance score.</p>
+      <div style="background:#eefaf5;border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;">
+        [query + " [SEP] " + doc]<br>
+            → [Encoder]<br>
+            → relevance score (0–1)
+      </div>
+      <p style="font-size:13px;margin-top:12px;color:var(--muted);">Full interaction — model reads both and judges them together.</p>
+    </div>
+  </div>
+
+  <h2>5.2 The Hiring Analogy — Clearest Way to Explain</h2>
+
+  <div class="story-box">
+    <div class="label">🏢 Job Interview Analogy</div>
+    <p><strong>Bi-Encoder = Resume Screener</strong><br>
+    HR reads 10,000 resumes independently. Each gets a score from 1–10 based on keywords and experience. Fast — one person can do 100 resumes per hour. But they never directly compare two resumes against each other. They never ask "which of these two candidates is better for THIS specific role?"</p>
+    <p style="margin-top:14px;"><strong>Cross-Encoder = Panel Interview</strong><br>
+    The final 10 candidates come in. The panel asks questions specific to the role. The candidate and the job requirements are in the room together — the panel can probe gaps, test fit, compare directly. Slow — takes 1 hour per candidate. But far more accurate than a resume screen.</p>
+    <p style="margin-top:14px;"><strong>RAG Pipeline = Both stages together.</strong> Bi-encoder screens 10,000 chunks down to 100. Cross-encoder interviews those 100 and picks the top 5 for the LLM.</p>
+  </div>
+
+  <h2>5.3 Why Bi-Encoder is Fast but Limited</h2>
+
+  <p>The bi-encoder's magic is <strong>pre-computation</strong>. At indexing time, every document is already encoded into a vector and stored. At query time, only the query needs encoding. Then it's just a dot product — incredibly fast even for millions of documents.</p>
+
+  <div class="concept-box">
+    <div class="label">⚡ The Speed Secret</div>
+    <p><strong>Indexing time (done once):</strong> encode all 3,000 BajajBot chunks → store vectors in ChromaDB.</p>
+    <p style="margin-top:8px;"><strong>Query time (every request):</strong> encode 1 query → dot product with 3,000 stored vectors → done in milliseconds.</p>
+    <p style="margin-top:8px;"><strong>But the limitation:</strong> The model never sees query and document together. It's like rating two restaurants without ever eating at either one — just looking at their menus separately.</p>
+  </div>
+
+  <h2>5.4 Why Cross-Encoder is Slow but Precise</h2>
+
+  <p>The cross-encoder <strong>cannot be pre-computed</strong>. For every query, it must re-process every (query, document) pair from scratch. You can't encode the document alone — it always needs the query present.</p>
+
+  <div class="concept-box">
+    <div class="label">🎯 The Precision Secret</div>
+    <p>The cross-encoder reads: <em>"What is my EMI? [SEP] EMI for loan BFL2024001 is ₹8,450 per month, deducted on the 5th."</em></p>
+    <p style="margin-top:8px;">It can see: "EMI" appears in both. "BFL2024001" is a specific loan ID. The document directly answers the question. Score = 0.97 (very relevant).</p>
+    <p style="margin-top:8px;">A bi-encoder only knows "EMI query" and "EMI document" are semantically close — it can't see the specific loan ID match. Score = 0.81 (less precise).</p>
+  </div>
+
+  <h2>5.5 In Code — The Difference is Crystal Clear</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">from</span> sentence_transformers <span class="kw">import</span> SentenceTransformer, CrossEncoder
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+query = <span class="st">"What is my EMI for personal loan?"</span>
+docs  = [
+    <span class="st">"EMI for loan BFL2024001 is ₹8,450 per month, deducted on the 5th"</span>,
+    <span class="st">"Interest rates for personal loans range from 10% to 24% per annum"</span>,
+    <span class="st">"You can defer your EMI by contacting the helpdesk"</span>,
+    <span class="st">"Fixed deposits earn 7.5% interest per annum"</span>,   <span class="cm"># irrelevant</span>
+]
+
+<span class="cm"># ── BI-ENCODER (SentenceTransformer — what you've been using) ─</span>
+bi_model = SentenceTransformer(<span class="st">"all-MiniLM-L6-v2"</span>)
+
+<span class="cm"># Query and docs encoded SEPARATELY</span>
+query_emb = bi_model.encode(query, normalize_embeddings=<span class="kw">True</span>)
+doc_embs  = bi_model.encode(docs,  normalize_embeddings=<span class="kw">True</span>)
+
+<span class="cm"># Score = cosine similarity (just a dot product after normalization)</span>
+bi_scores = doc_embs @ query_emb   <span class="cm"># shape (4,)</span>
+
+<span class="fn">print</span>(<span class="st">"=== BI-ENCODER SCORES ==="</span>)
+<span class="kw">for</span> doc, score <span class="kw">in</span> <span class="fn">zip</span>(docs, bi_scores):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{score:.3f} | {doc[:60]}..."</span>)
+
+<span class="cm"># ── CROSS-ENCODER (reads query + doc TOGETHER) ────────────────</span>
+cross_model = CrossEncoder(<span class="st">"cross-encoder/ms-marco-MiniLM-L-6-v2"</span>)
+<span class="cm"># pip install sentence-transformers</span>
+
+<span class="cm"># Must pass (query, doc) PAIRS — model sees both at once</span>
+pairs = [(query, doc) <span class="kw">for</span> doc <span class="kw">in</span> docs]
+cross_scores = cross_model.predict(pairs)   <span class="cm"># shape (4,)</span>
+
+<span class="fn">print</span>(<span class="st">"
+=== CROSS-ENCODER SCORES ==="</span>)
+<span class="kw">for</span> doc, score <span class="kw">in</span> <span class="fn">zip</span>(docs, cross_scores):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{score:.3f} | {doc[:60]}..."</span>)
+
+<span class="cm"># You'll see: cross-encoder gives a MUCH sharper gap between</span>
+<span class="cm"># the truly relevant doc (EMI ₹8,450) vs the others.</span>
+<span class="cm"># Bi-encoder lumps "EMI deferment" and "EMI amount" together</span>
+<span class="cm"># because semantically both are "about EMI".</span></code></pre>
+
+  <h2>5.6 Side-by-Side Comparison</h2>
+
+  <table>
+    <tr><th>Property</th><th>Bi-Encoder</th><th>Cross-Encoder</th></tr>
+    <tr><td><strong>How it reads</strong></td><td>Query alone → vector. Doc alone → vector.</td><td>Query + doc together → score</td></tr>
+    <tr><td><strong>Pre-computation</strong></td><td>✅ Yes — encode docs at index time</td><td>❌ No — must run fresh every query</td></tr>
+    <tr><td><strong>Speed</strong></td><td>⚡ Milliseconds for 1M docs</td><td>🐢 Seconds for 100 docs</td></tr>
+    <tr><td><strong>Accuracy</strong></td><td>Good — captures general semantics</td><td>Excellent — captures exact interaction</td></tr>
+    <tr><td><strong>Scalability</strong></td><td>✅ Millions of documents</td><td>❌ Max ~100–500 candidates</td></tr>
+    <tr><td><strong>Used in</strong></td><td>Retrieval (Stage 1)</td><td>Reranking (Stage 2)</td></tr>
+    <tr><td><strong>LangChain examples</strong></td><td><code>HuggingFaceEmbeddings</code>, <code>OpenAIEmbeddings</code></td><td><code>CohereRerank</code>, <code>FlashrankRerank</code></td></tr>
+    <tr><td><strong>Your code so far</strong></td><td>Everything in Sessions 2–4</td><td>Chapter 6 of this session</td></tr>
+  </table>
+
+  <h2>5.7 Where Each Fits in BajajBot's Pipeline</h2>
+
+  <div class="flow" style="flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="flow-box" style="background:#f5f0ff;border-color:var(--accent4);min-width:160px;">User Query<div class="flow-sub">"What is my EMI?"</div></div>
+      <div class="flow-arrow">→</div>
+      <div style="font-size:13px;color:var(--muted);">enters the pipeline</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="flow-box dense" style="min-width:160px;">BI-ENCODER<div class="flow-sub">encodes query → finds top-100 chunks from 3,000 (fast)</div></div>
+      <div class="flow-arrow">→</div>
+      <div style="font-size:13px;color:var(--muted);max-width:280px;">ChromaDB / FAISS similarity search. All-MiniLM-L6-v2. Takes ~5ms.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="flow-box rerank" style="min-width:160px;">CROSS-ENCODER<div class="flow-sub">reads (query, chunk) pairs → reranks to top-5 (precise)</div></div>
+      <div class="flow-arrow">→</div>
+      <div style="font-size:13px;color:var(--muted);max-width:280px;">BGE Reranker / Cohere Rerank. Sees full interaction. Takes ~200ms but only over 100 candidates.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="flow-box llm" style="min-width:160px;">LLM<div class="flow-sub">gets best 5 chunks → generates answer</div></div>
+      <div class="flow-arrow">→</div>
+      <div style="font-size:13px;color:var(--muted);max-width:280px;">GPT-4o-mini. Best chunks = best answer. The cross-encoder ensures rank-1 is actually the best.</div>
+    </div>
+  </div>
+
+  <div class="win-box">
+    <div class="label">✅ The Takeaway</div>
+    <p>Bi-encoder and cross-encoder are <strong>not competing</strong> — they're complementary. Bi-encoder handles scale (millions of docs). Cross-encoder handles precision (top-100 candidates). Together they give you a pipeline that's both fast AND accurate. This is the standard architecture in every production RAG system today.</p>
+  </div>
+
+  <div class="interactive-section">
+    <h3>🧠 Quick Check</h3>
+    <p class="quiz-q">Why can't we just use a cross-encoder for all 3,000 BajajBot chunks at query time?</p>
+    <div class="quiz-opts">
+      <div class="quiz-opt" onclick="checkQ2(this, false)">A. Cross-encoders don't understand BajajBot's domain</div>
+      <div class="quiz-opt" onclick="checkQ2(this, false)">B. Cross-encoders can't be used with LangChain</div>
+      <div class="quiz-opt" onclick="checkQ2(this, true)">C. It can't be pre-computed — must run on every (query, doc) pair at query time — 3,000 pairs × 200ms = too slow</div>
+      <div class="quiz-opt" onclick="checkQ2(this, false)">D. Cross-encoders only work with Pinecone</div>
+    </div>
+    <div class="quiz-feedback" id="qfeed2">Exactly. A cross-encoder on 3,000 chunks would take minutes per query — completely unusable. That's why we use bi-encoder to narrow it to 100, then cross-encoder on just those 100. The two-stage design is what makes precision at scale possible.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 6 — RERANKING -->
+<div class="chapter" id="ch6">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 06</div>
+    <h1 class="ch-title">Reranking —<br><span class="a3">The Second Opinion</span></h1>
+    <p class="ch-subtitle">Vector search returns top-100 candidates. But the truly best answer might be at rank 40. Reranking fixes that with a smarter second pass.</p>
+  </div>
+
+  <div class="story-box">
+    <div class="label">🎬 Dating App Analogy</div>
+    <p><strong>Retrieval</strong> = swiping through 10,000 profiles and picking 100 that "kinda match" your preferences (fast, broad).</p>
+    <p><strong>Reranking</strong> = going through those 100 carefully, reading every bio, and putting the <em>actual best matches</em> at the top (slow, precise).</p>
+    <p>Users only look at the first 3-5 results. If rank-1 is wrong, your RAG system fails — even if the correct answer was at rank 8.</p>
+  </div>
+
+  <h2>5.1 Retrieval vs Reranking — The Key Distinction</h2>
+
+  <div class="flow">
+    <div class="flow-box retrieval">Stage 1<br><span class="flow-sub">ANN Retrieval<br>Top-100 fast</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box rerank">Stage 2<br><span class="flow-sub">Reranker<br>Top-10 precise</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box llm">LLM<br><span class="flow-sub">Gets best 10<br>Generates answer</span></div>
+  </div>
+
+  <table>
+    <tr><th>Property</th><th>Retrieval (Stage 1)</th><th>Reranking (Stage 2)</th></tr>
+    <tr><td>Speed</td><td>⚡ Fast (ANN index)</td><td>🐢 Slower (cross-encoder)</td></tr>
+    <tr><td>Documents seen</td><td>All N docs (via index)</td><td>Only top-K candidates</td></tr>
+    <tr><td>Optimization</td><td>Recall — don't miss anything</td><td>Precision — best at the top</td></tr>
+    <tr><td>Model type</td><td>Bi-encoder (query &amp; doc separate)</td><td>Cross-encoder (query + doc together)</td></tr>
+    <tr><td>Cost</td><td>O(log N) with ANN</td><td>O(K) — only over candidates</td></tr>
+  </table>
+
+  <div class="concept-box">
+    <div class="label">💡 Hybrid Search vs Reranking — Clear Distinction</div>
+    <p><strong>Hybrid Search</strong> = blend dense + sparse scores <em>at retrieval stage</em>. Still one-pass.</p>
+    <p><strong>Reranking</strong> = run a <em>second pass</em> after retrieval with a smarter model. Two-pass pipeline.</p>
+    <p>These are <strong>complementary</strong>, not competing. You can do hybrid retrieval → reranking in the same pipeline.</p>
+  </div>
+
+  <h2>5.2 BM25 Reranking — Full Code</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">import</span> re, math, numpy <span class="kw">as</span> np, faiss
+<span class="kw">from</span> sentence_transformers <span class="kw">import</span> SentenceTransformer
+
+<span class="cm"># ─── SETUP ────────────────────────────────────────────────────</span>
+model    = SentenceTransformer(<span class="st">"all-MiniLM-L6-v2"</span>)
+<span class="cm"># texts, doc_ids, emb_norm, hnsw_idmap from previous sessions</span>
+id_to_pos = {<span class="fn">int</span>(ids_int64[k]): k <span class="kw">for</span> k <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(ids_int64))}
+
+<span class="cm"># ─── BM25 SETUP ───────────────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">tokenize</span>(s: <span class="fn">str</span>):
+    <span class="kw">return</span> re.findall(<span class="st">r"[a-z0-9]+"</span>, s.lower())
+
+corpus_tokens = [<span class="fn">tokenize</span>(t) <span class="kw">for</span> t <span class="kw">in</span> texts]
+doc_lens      = np.array([<span class="fn">len</span>(t) <span class="kw">for</span> t <span class="kw">in</span> corpus_tokens], dtype=np.float32)
+avgdl         = <span class="fn">float</span>(doc_lens.mean()) <span class="kw">if</span> <span class="fn">len</span>(doc_lens) <span class="kw">else</span> <span class="nb">1.0</span>
+df            = {}
+<span class="kw">for</span> toks <span class="kw">in</span> corpus_tokens:
+    <span class="kw">for</span> w <span class="kw">in</span> <span class="fn">set</span>(toks): df[w] = df.get(w, <span class="nb">0</span>) + <span class="nb">1</span>
+
+N_docs = <span class="fn">len</span>(corpus_tokens)
+k1, b  = <span class="nb">1.2</span>, <span class="nb">0.75</span>
+
+<span class="kw">def</span> <span class="fn">idf</span>(w):
+    n = df.get(w, <span class="nb">0</span>)
+    <span class="kw">return</span> math.log((N_docs - n + <span class="nb">0.5</span>) / (n + <span class="nb">0.5</span>) + <span class="nb">1.0</span>)
+
+<span class="kw">def</span> <span class="fn">bm25_score</span>(query_tokens, doc_idx):
+    toks = corpus_tokens[doc_idx]
+    <span class="kw">if not</span> toks: <span class="kw">return</span> <span class="nb">0.0</span>
+    tf   = {}
+    <span class="kw">for</span> w <span class="kw">in</span> toks: tf[w] = tf.get(w, <span class="nb">0</span>) + <span class="nb">1</span>
+    dl   = <span class="fn">len</span>(toks)
+    norm = k1 * (<span class="nb">1</span> - b + b * dl / avgdl)
+    score = <span class="nb">0.0</span>
+    <span class="kw">for</span> w <span class="kw">in</span> query_tokens:
+        f = tf.get(w)
+        <span class="kw">if not</span> f: <span class="kw">continue</span>
+        score += <span class="fn">idf</span>(w) * (f * (k1 + <span class="nb">1</span>)) / (f + norm)
+    <span class="kw">return</span> score
+
+<span class="cm"># ─── ANN RETRIEVAL (Stage 1) ──────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">ann_retrieve</span>(query_text: <span class="fn">str</span>, top_k: <span class="fn">int</span> = <span class="nb">100</span>):
+    q  = model.encode([query_text], convert_to_numpy=<span class="kw">True</span>).astype(<span class="st">"float32"</span>)
+    faiss.normalize_L2(q)
+    D, I = hnsw_idmap.search(q, top_k)
+    positions = [id_to_pos[<span class="fn">int</span>(rid)] <span class="kw">for</span> rid <span class="kw">in</span> I[<span class="nb">0</span>] <span class="kw">if</span> <span class="fn">int</span>(rid) <span class="kw">in</span> id_to_pos]
+    scores    = D[<span class="nb">0</span>][:<span class="fn">len</span>(positions)].tolist()
+    <span class="kw">return</span> positions, scores
+
+<span class="cm"># ─── BM25 RERANK (Stage 2) ────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">bm25_rerank</span>(query_text: <span class="fn">str</span>, candidates, top_k: <span class="fn">int</span> = <span class="nb">10</span>):
+    qtoks  = <span class="fn">tokenize</span>(query_text)
+    scored = [(<span class="fn">bm25_score</span>(qtoks, i), i) <span class="kw">for</span> i <span class="kw">in</span> candidates]
+    scored.sort(reverse=<span class="kw">True</span>)
+    <span class="kw">return</span> scored[:top_k]
+
+<span class="cm"># ─── FULL PIPELINE: BEFORE vs AFTER ──────────────────────────</span>
+query = <span class="st">"processing fee for personal loan BFL-PL-2024"</span>
+
+candidates, vec_scores = <span class="fn">ann_retrieve</span>(query, top_k=<span class="nb">100</span>)
+
+<span class="fn">print</span>(<span class="st">"=== BEFORE RERANKING (ANN top-5) ==="</span>)
+<span class="kw">for</span> rank, (pos, sc) <span class="kw">in</span> <span class="fn">enumerate</span>(<span class="fn">zip</span>(candidates[:<span class="nb">5</span>], vec_scores[:<span class="nb">5</span>]), <span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{rank}. [{doc_ids[pos]}] sim={sc:.4f} | {texts[pos][:80]}..."</span>)
+
+reranked = <span class="fn">bm25_rerank</span>(query, candidates, top_k=<span class="nb">10</span>)
+
+<span class="fn">print</span>(<span class="st">"\n=== AFTER BM25 RERANKING (top-5) ==="</span>)
+<span class="kw">for</span> rank, (bm25, pos) <span class="kw">in</span> <span class="fn">enumerate</span>(reranked[:<span class="nb">5</span>], <span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{rank}. [{doc_ids[pos]}] bm25={bm25:.4f} | {texts[pos][:80]}..."</span>)</code></pre>
+
+  <h2>5.3 Pinecone BGE Reranker — Cross-Encoder (Best Quality)</h2>
+  <p>BM25 reranking is fast and interpretable. But for maximum quality, use a <strong>cross-encoder</strong> like BGE Reranker — it reads query + document together and gives a deep relevance score.</p>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">from</span> pinecone.grpc <span class="kw">import</span> PineconeGRPC <span class="kw">as</span> Pinecone
+
+pc    = Pinecone(api_key=api_key)
+index = pc.Index(<span class="st">"bajajbot-hybrid"</span>)
+
+id_to_text = {<span class="fn">str</span>(doc_ids[i]): texts[i] <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(doc_ids))}
+
+<span class="kw">def</span> <span class="fn">stage1_retrieve</span>(query_text: <span class="fn">str</span>, top_k: <span class="fn">int</span> = <span class="nb">25</span>):
+    <span class="st">"""Stage 1: Fast ANN retrieval from Pinecone"""</span>
+    qv  = model.encode([query_text], normalize_embeddings=<span class="kw">True</span>)[<span class="nb">0</span>].tolist()
+    res = index.query(vector=qv, top_k=top_k,
+                      include_values=<span class="kw">False</span>, include_metadata=<span class="kw">False</span>)
+    <span class="kw">return</span> [(m[<span class="st">"id"</span>], <span class="fn">float</span>(m[<span class="st">"score"</span>])) <span class="kw">for</span> m <span class="kw">in</span> res.get(<span class="st">"matches"</span>, [])]
+
+<span class="kw">def</span> <span class="fn">stage2_rerank</span>(query_text: <span class="fn">str</span>, candidates, top_n: <span class="fn">int</span> = <span class="nb">5</span>):
+    <span class="st">"""Stage 2: Cross-encoder reranking via Pinecone BGE Reranker"""</span>
+    docs = [
+        {<span class="st">"id"</span>: _id, <span class="st">"text"</span>: id_to_text.get(<span class="fn">str</span>(_id), <span class="st">""</span>)}
+        <span class="kw">for</span> _id, _ <span class="kw">in</span> candidates
+        <span class="kw">if</span> id_to_text.get(<span class="fn">str</span>(_id))
+    ]
+    <span class="kw">if not</span> docs: <span class="kw">return</span> []
+    rr = pc.inference.rerank(
+        model=<span class="st">"bge-reranker-v2-m3"</span>,     <span class="cm"># cross-encoder model</span>
+        query=query_text,
+        documents=docs,
+        top_n=top_n,
+        return_documents=<span class="kw">True</span>
+    )
+    <span class="kw">return</span> [(item.document[<span class="st">"id"</span>], <span class="fn">float</span>(item.score), item.document[<span class="st">"text"</span>])
+            <span class="kw">for</span> item <span class="kw">in</span> rr.data]
+
+<span class="cm"># ─── RUN FULL 2-STAGE PIPELINE ────────────────────────────────</span>
+query = <span class="st">"What is the interest rate for personal loan BFL-PL-2024?"</span>
+
+candidates = <span class="fn">stage1_retrieve</span>(query, top_k=<span class="nb">25</span>)
+<span class="fn">print</span>(<span class="st">"=== Stage 1: ANN Retrieval (top-5) ==="</span>)
+<span class="kw">for</span> rank, (_id, score) <span class="kw">in</span> <span class="fn">enumerate</span>(candidates[:<span class="nb">5</span>], <span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{rank}. {_id} | sim={score:.4f}"</span>)
+
+reranked = <span class="fn">stage2_rerank</span>(query, candidates, top_n=<span class="nb">5</span>)
+<span class="fn">print</span>(<span class="st">"\n=== Stage 2: BGE Reranker (top-5) ==="</span>)
+<span class="kw">for</span> rank, (_id, score, text) <span class="kw">in</span> <span class="fn">enumerate</span>(reranked, <span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"{rank}. {_id} | rerank={score:.4f} | {text[:80]}..."</span>)</code></pre>
+
+  <div class="instructor-box">
+    <div class="label">👨‍🏫 Instructor Note</div>
+    <p>Run BM25 rerank live and show the "before vs after" output. Then ask: <em>"Which doc moved from rank 8 to rank 1 after reranking? What does that tell us about vector search alone?"</em> This is the key teaching moment — vector search captures vibes, reranking captures precision.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAPTER 7 — LATENCY OPT -->
+<div class="chapter" id="ch7">
+  <div class="ch-hero">
+    <div class="ch-number">Chapter 07</div>
+    <h1 class="ch-title">Latency<br><span class="a3">Optimization</span></h1>
+    <p class="ch-subtitle">Caching, batching, and the FAISS vs Pinecone gap in production latency management.</p>
+  </div>
+
+  <h2>6.1 Query Caching</h2>
+
+  <div class="story-box">
+    <div class="label">🏦 BajajBot Reality</div>
+    <p>Every day, 10,000 customers ask BajajBot: <em>"What is the minimum balance for savings account?"</em> Without caching, that's 10,000 embedding calls + 10,000 vector searches + 10,000 LLM generations. <strong>With caching: compute once, serve 9,999 times instantly.</strong></p>
+  </div>
+
+  <h3>Simple In-Memory Cache with Semantic Match</h3>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="kw">import</span> hashlib
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> functools <span class="kw">import</span> lru_cache
+
+<span class="cm"># ─── EXACT MATCH CACHE (simplest) ─────────────────────────────</span>
+query_cache = {}   <span class="cm"># {query_hash: (top_k_results, timestamp)}</span>
+
+<span class="kw">def</span> <span class="fn">cache_key</span>(query: <span class="fn">str</span>) -> <span class="fn">str</span>:
+    <span class="kw">return</span> hashlib.md5(query.lower().strip().encode()).hexdigest()
+
+<span class="kw">def</span> <span class="fn">cached_retrieve</span>(query_text: <span class="fn">str</span>, top_k: <span class="fn">int</span> = <span class="nb">5</span>):
+    key = <span class="fn">cache_key</span>(query_text)
+    <span class="kw">if</span> key <span class="kw">in</span> query_cache:
+        <span class="fn">print</span>(<span class="st">"✅ Cache HIT"</span>)
+        <span class="kw">return</span> query_cache[key]
+    <span class="cm"># Cache MISS — do the real work</span>
+    q  = model.encode([query_text], convert_to_numpy=<span class="kw">True</span>).astype(<span class="st">"float32"</span>)
+    faiss.normalize_L2(q)
+    D, I = hnsw_idmap.search(q, top_k)
+    results = [(doc_ids[id_to_pos[<span class="fn">int</span>(rid)]], <span class="fn">float</span>(sc))
+               <span class="kw">for</span> rid, sc <span class="kw">in</span> <span class="fn">zip</span>(I[<span class="nb">0</span>], D[<span class="nb">0</span>]) <span class="kw">if</span> <span class="fn">int</span>(rid) <span class="kw">in</span> id_to_pos]
+    query_cache[key] = results
+    <span class="fn">print</span>(<span class="st">"❌ Cache MISS — computed and stored"</span>)
+    <span class="kw">return</span> results
+
+<span class="cm"># ─── SEMANTIC CACHE (catches near-duplicates) ─────────────────</span>
+<span class="cm"># Store (embedding, result) pairs; for new queries, check cosine sim</span>
+<span class="cm"># If similarity > threshold → return cached result (even if wording differs)</span>
+
+cache_embeddings = []   <span class="cm"># list of (embedding, result) tuples</span>
+SIMILARITY_THRESHOLD = <span class="nb">0.92</span>   <span class="cm"># tune based on your domain</span>
+
+<span class="kw">def</span> <span class="fn">semantic_cached_retrieve</span>(query_text: <span class="fn">str</span>, top_k: <span class="fn">int</span> = <span class="nb">5</span>):
+    q = model.encode([query_text], convert_to_numpy=<span class="kw">True</span>,
+                     normalize_embeddings=<span class="kw">True</span>).astype(<span class="st">"float32"</span>)[<span class="nb">0</span>]
+
+    <span class="cm"># Check against cached embeddings</span>
+    <span class="kw">for</span> cached_emb, cached_result <span class="kw">in</span> cache_embeddings:
+        sim = <span class="fn">float</span>(np.dot(q, cached_emb))   <span class="cm"># cosine sim (both normalized)</span>
+        <span class="kw">if</span> sim >= SIMILARITY_THRESHOLD:
+            <span class="fn">print</span>(<span class="fn">f</span><span class="st">"✅ Semantic cache HIT (sim={sim:.3f})"</span>)
+            <span class="kw">return</span> cached_result
+
+    <span class="cm"># MISS — compute and cache</span>
+    results = <span class="fn">cached_retrieve</span>(query_text, top_k)
+    cache_embeddings.append((q, results))
+    <span class="kw">return</span> results
+
+<span class="cm"># Test: near-duplicate queries should HIT cache</span>
+<span class="fn">semantic_cached_retrieve</span>(<span class="st">"minimum balance savings account"</span>)      <span class="cm"># MISS</span>
+<span class="fn">semantic_cached_retrieve</span>(<span class="st">"what is minimum balance in savings account"</span>) <span class="cm"># HIT!</span></code></pre>
+
+  <h2>6.2 Batch Similarity Searches</h2>
+
+<pre><button class="copy-btn" onclick="copyCode(this)">COPY</button><code><span class="cm"># Instead of 10 separate queries → send all at once</span>
+
+<span class="cm"># ❌ SLOW — 10 separate calls</span>
+<span class="kw">for</span> query <span class="kw">in</span> queries:
+    q = model.encode([query]).astype(<span class="st">"float32"</span>)
+    faiss.normalize_L2(q)
+    D, I = index.search(q, top_k)   <span class="cm"># 10 round-trips</span>
+
+<span class="cm"># ✅ FAST — 1 batch call</span>
+q_batch = model.encode(queries, convert_to_numpy=<span class="kw">True</span>).astype(<span class="st">"float32"</span>)
+faiss.normalize_L2(q_batch)
+D_all, I_all = index.search(q_batch, top_k)   <span class="cm"># 1 matrix search!</span>
+
+<span class="cm"># I_all[i] = top-k results for query i</span>
+<span class="kw">for</span> i, query <span class="kw">in</span> <span class="fn">enumerate</span>(queries):
+    <span class="fn">print</span>(<span class="fn">f</span><span class="st">"Query {i}: top results = {I_all[i]}"</span>)</code></pre>
+
+  <h2>6.3 FAISS vs Pinecone — Production Comparison</h2>
+
+  <div class="cmp-grid">
+    <div class="cmp-card faiss">
+      <h4>🔧 FAISS (Library)</h4>
+      <ul>
+        <li>No built-in caching — implement yourself (Redis, dict)</li>
+        <li>Batching: manual — you manage <code>index.search(batch)</code></li>
+        <li>Scaling: DIY — sharding, load balancing, merge logic</li>
+        <li>Monitoring: none — build your own Prometheus metrics</li>
+        <li>Repeat queries: always re-scans the index</li>
+        <li>Memory growth: manual eviction + index rebuild</li>
+      </ul>
+    </div>
+    <div class="cmp-card pinecone">
+      <h4>☁️ Pinecone (Managed)</h4>
+      <ul>
+        <li>Built-in query caching at infrastructure level</li>
+        <li>Automatic batch optimization per request</li>
+        <li>Auto-scaling: serverless, no manual sharding</li>
+        <li>Dashboard: QPS, p50/p95/p99, upsert rate built-in</li>
+        <li>Repeat queries: served from hot cache</li>
+        <li>Data: live upserts, instant availability</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="concept-box">
+    <div class="label">🎯 Decision Rule for BajajBot</div>
+    <p><strong>Development / Learning:</strong> Use FAISS. Full control, no cost, perfect for understanding internals (Sessions 3–4).</p>
+    <p><strong>Production at scale:</strong> Use Pinecone. Caching, monitoring, scaling — all handled. You focus on the RAG logic, not infra.</p>
+    <p><strong>Hybrid approach:</strong> FAISS for local dev + testing. Pinecone for staging + prod. Same query code, just swap the index object.</p>
+  </div>
+
+  <!-- FINAL SUMMARY -->
+  <h2>📋 Session 4 — Full Summary</h2>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="icon">🔵</div>
+      <h4>Dense Indexes</h4>
+      <p>Semantic meaning via embeddings. Best for contextual queries. HNSW/IVF in FAISS.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">🟠</div>
+      <h4>Sparse Indexes</h4>
+      <p>Exact keyword matching via BM25/TF-IDF. Best for product codes, proper nouns. Pinecone sparse.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">🟢</div>
+      <h4>Hybrid Indexes</h4>
+      <p>Dense + Sparse blended via alpha. Best of both worlds. Tune alpha per domain.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">🔴</div>
+      <h4>Quantization</h4>
+      <p>32x compression via PQ codebooks. Trade tiny accuracy loss for massive RAM savings.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">📊</div>
+      <h4>Eval Metrics</h4>
+      <p>Precision/Recall@K (coverage), MRR/NDCG (order-aware). Both needed for complete picture.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">⚡</div>
+      <h4>QPS + Latency</h4>
+      <p>QPS = throughput. p50/p95/p99 = latency tail. High p99 kills production. Measure both.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">🎯</div>
+      <h4>Reranking</h4>
+      <p>Two-stage: ANN retrieval (top-100) → BM25/cross-encoder rerank (top-10). Precision over recall.</p>
+    </div>
+    <div class="summary-card">
+      <div class="icon">🚀</div>
+      <h4>Latency Opt</h4>
+      <p>Caching (exact + semantic), batching, FAISS DIY vs Pinecone managed. Pick based on scale.</p>
+    </div>
+  </div>
+
+  <div class="win-box" style="margin-top:40px;">
+    <div class="label">🏁 BajajBot v0.4 — What You Can Now Build</div>
+    <p>BajajBot can now: (1) handle both semantic queries AND exact product codes via hybrid search, (2) compress its vector index for large-scale deployment, (3) measure whether retrieval is actually working with P@K/NDCG, (4) prove production-readiness with QPS/p99 benchmarks, (5) ensure the best answer is rank-1 via reranking, and (6) serve 10x more queries with caching.</p>
+  </div>
+
+  <div class="instructor-box">
+    <div class="label">📚 Homework</div>
+    <p>1. Run Precision@5 and Recall@5 on your BajajBot retrieval — create 10 test queries with known relevant docs.<br>
+    2. Add BM25 reranking to your Session 3 FAISS pipeline — compare top-5 before and after.<br>
+    3. Implement simple dict-based query caching — measure latency improvement on 100 repeat queries.</p>
+  </div>
+</div>
+
+</main>
+
+<script>
+// NAV
+function go(n) {
+  document.querySelectorAll('.chapter').forEach((c,i) => {
+    c.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.nav-ch').forEach((b,i) => {
+    b.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.pdot').forEach((d,i) => {
+    d.classList.toggle('active', i === n);
+  });
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// COPY
+function copyCode(btn) {
+  const code = btn.parentElement.querySelector('code').innerText;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'COPIED!';
+    setTimeout(() => btn.textContent = 'COPY', 2000);
+  });
+}
+
+// QUIZ
+function checkQ(el, correct) {
+  const opts = el.parentElement.querySelectorAll('.quiz-opt');
+  opts.forEach(o => o.style.pointerEvents = 'none');
+  el.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) {
+    opts.forEach(o => {
+      if (o.innerText.startsWith('B.')) o.classList.add('correct');
+    });
+  }
+  const fb = document.getElementById('qfeed');
+  fb.classList.add('show', correct ? 'correct' : 'wrong');
+}
+
+function checkQ2(el, correct) {
+  const opts = el.parentElement.querySelectorAll('.quiz-opt');
+  opts.forEach(o => o.style.pointerEvents = 'none');
+  el.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) {
+    opts.forEach(o => {
+      if (o.innerText.startsWith('C.')) o.classList.add('correct');
+    });
+  }
+  const fb = document.getElementById('qfeed2');
+  fb.classList.add('show', correct ? 'correct' : 'wrong');
+}
+
+// ALPHA SLIDER
+function updateAlpha(val) {
+  const alpha = val / 100;
+  document.getElementById('alphaVal').textContent = 'α=' + alpha.toFixed(2);
+  const result = document.getElementById('alphaResult');
+  if (alpha < 0.2) {
+    result.textContent = 'Almost pure sparse — best for exact keyword/code matching. Use when users type product codes.';
+  } else if (alpha < 0.4) {
+    result.textContent = 'Sparse-heavy — keyword precision dominates. Good for factual lookups.';
+  } else if (alpha < 0.6) {
+    result.textContent = 'Balanced — equal weight to semantic + keywords. Good starting point for most RAG use cases.';
+  } else if (alpha < 0.8) {
+    result.textContent = 'Dense-heavy — semantic meaning dominates. Best for conversational, conceptual queries.';
+  } else {
+    result.textContent = 'Almost pure dense — full semantic search. Best when users ask questions in natural language.';
+  }
+}
+
+// ANIMATE METRIC BARS on chapter entry
+document.querySelectorAll('.nav-ch').forEach((btn, i) => {
+  btn.addEventListener('click', () => {
+    setTimeout(() => {
+      document.querySelectorAll('.metric-bar-fill').forEach(bar => {
+        bar.style.width = bar.dataset.width || '0%';
+      });
+    }, 300);
+  });
+});
+</script>
+</body>
+</html>
